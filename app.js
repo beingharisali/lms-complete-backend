@@ -1,4 +1,5 @@
 require("dotenv").config();
+require("express-async-errors");
 
 // extra security packages
 const helmet = require("helmet");
@@ -11,6 +12,9 @@ const app = express();
 
 const connectDB = require("./db/connect");
 const authenticateUser = require("./middleware/authentication");
+
+// routers
+const authRouter = require("./routes/auth");
 
 // error handler
 const notFoundMiddleware = require("./middleware/not-found");
@@ -31,6 +35,9 @@ app.use(xss());
 app.get("/", (req, res) => {
   res.send('<h1>LMS API</h1><a href="/api-docs">Documentation</a>');
 });
+
+// routes
+app.use("/api/v1/auth", authRouter);
 
 app.use(notFoundMiddleware);
 app.use(errorHandlerMiddleware);
