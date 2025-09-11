@@ -32,17 +32,24 @@ const authenticateUser = require("./middleware/authentication");
 // Create uploads directory if it doesn't exist
 const uploadsDir = path.join(__dirname, "uploads");
 const teachersUploadsDir = path.join(__dirname, "uploads/teachers");
+const staffUploadsDir = path.join(__dirname, "uploads/staff"); // Add this line
+
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
 }
 if (!fs.existsSync(teachersUploadsDir)) {
   fs.mkdirSync(teachersUploadsDir, { recursive: true });
 }
+if (!fs.existsSync(staffUploadsDir)) {
+  // Add this block
+  fs.mkdirSync(staffUploadsDir, { recursive: true });
+}
 
 // routers
 const authRouter = require("./routes/auth");
 const studentsRouter = require("./routes/students");
 const teachersRouter = require("./routes/teachers");
+const staffRouter = require("./routes/staff"); // Add this import
 
 // error handler
 const notFoundMiddleware = require("./middleware/not-found");
@@ -72,6 +79,7 @@ app.get("/", (req, res) => {
 app.use("/api/v1/auth", authRouter);
 app.use("/api/v1/students", studentsRouter);
 app.use("/api/v1/teachers", teachersRouter);
+app.use("/api/v1/staff", staffRouter); // Add this line
 
 app.use(notFoundMiddleware);
 app.use(errorHandlerMiddleware);
