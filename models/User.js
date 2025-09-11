@@ -42,11 +42,22 @@ UserSchema.pre("save", async function () {
 });
 
 UserSchema.methods.createJWT = function () {
+  // Get the JWT_LIFETIME from environment variable or use default
+  let expiresIn = process.env.JWT_LIFETIME;
+
+  // If JWT_LIFETIME is not set or is empty, use default "30d"
+  if (!expiresIn || expiresIn.trim() === "") {
+    expiresIn = "30d";
+  }
+
+  // Remove any quotes that might be present
+  expiresIn = expiresIn.replace(/['"]/g, "").trim();
+
   return jwt.sign(
     { userId: this._id, name: this.name, role: this.role },
     process.env.JWT_SECRET,
     {
-      expiresIn: process.env.JWT_LIFETIME || "30d",
+      expiresIn: expiresIn,
     }
   );
 };
