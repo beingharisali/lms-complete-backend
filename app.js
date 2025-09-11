@@ -1,6 +1,20 @@
 require("dotenv").config();
 require("express-async-errors");
 
+// Check if required environment variables are set
+if (!process.env.JWT_SECRET) {
+  console.error("FATAL ERROR: JWT_SECRET is not defined.");
+  process.exit(1);
+}
+
+// Validate JWT_LIFETIME and set default if not provided
+if (!process.env.JWT_LIFETIME || process.env.JWT_LIFETIME.trim() === "") {
+  console.log("JWT_LIFETIME not set, using default: 30d");
+  process.env.JWT_LIFETIME = "30d";
+}
+
+console.log("JWT_LIFETIME:", process.env.JWT_LIFETIME);
+
 // extra security packages
 const helmet = require("helmet");
 const cors = require("cors");
@@ -17,13 +31,18 @@ const authenticateUser = require("./middleware/authentication");
 
 // Create uploads directory if it doesn't exist
 const uploadsDir = path.join(__dirname, "uploads");
+const teachersUploadsDir = path.join(__dirname, "uploads/teachers");
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
+}
+if (!fs.existsSync(teachersUploadsDir)) {
+  fs.mkdirSync(teachersUploadsDir, { recursive: true });
 }
 
 // routers
 const authRouter = require("./routes/auth");
 const studentsRouter = require("./routes/students");
+const teachersRouter = require("./routes/teachers");
 
 // error handler
 const notFoundMiddleware = require("./middleware/not-found");
@@ -52,6 +71,7 @@ app.get("/", (req, res) => {
 // routes
 app.use("/api/v1/auth", authRouter);
 app.use("/api/v1/students", studentsRouter);
+app.use("/api/v1/teachers", teachersRouter);
 
 app.use(notFoundMiddleware);
 app.use(errorHandlerMiddleware);
