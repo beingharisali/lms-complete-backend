@@ -1,7 +1,31 @@
 const mongoose = require("mongoose");
+const bcrypt = require("bcryptjs");
 
 const TeacherSchema = new mongoose.Schema(
   {
+    // Authentication fields
+    email: {
+      type: String,
+      required: [true, "Please provide email"],
+      match: [
+        /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/,
+        "Please provide a valid email",
+      ],
+      unique: true,
+      lowercase: true,
+    },
+    password: {
+      type: String,
+      required: [true, "Please provide password"],
+      minlength: 6,
+    },
+    role: {
+      type: String,
+      default: "teacher",
+      enum: ["teacher"],
+      immutable: true, // Prevents role modification after creation
+    },
+
     // Basic Information
     photo: {
       type: String, // Will store file path/URL
@@ -40,16 +64,6 @@ const TeacherSchema = new mongoose.Schema(
       type: String,
       required: [true, "Please provide phone number"],
       match: [/^[0-9+\-\s\(\)]{10,15}$/, "Please provide a valid phone number"],
-    },
-    email: {
-      type: String,
-      required: [true, "Please provide email"],
-      match: [
-        /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/,
-        "Please provide a valid email",
-      ],
-      unique: true,
-      lowercase: true,
     },
     cnic: {
       type: String,
@@ -161,11 +175,31 @@ const TeacherSchema = new mongoose.Schema(
       enum: ["Active", "Inactive", "On Leave", "Terminated"],
       default: "Active",
     },
+
+    // Track who created this teacher (admin user ID)
+    createdBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
   },
   {
     timestamps: true,
   }
 );
+
+// Hash password before saving
+TeacherSchema.pre("save", async function () {
+  if (!this.isModified("password")) return;
+  const salt = await bcrypt.genSalt(10);
+  this.password = await bcrypt.hash(this.password, salt);
+});
+
+// Method to compare password
+TeacherSchema.methods.comparePassword = async function (candidatePassword) {
+  const isMatch = await bcrypt.compare(candidatePassword, this.password);
+  return isMatch;
+};
 
 // Virtual for full name
 TeacherSchema.virtual("fullName").get(function () {
@@ -175,6 +209,10 @@ TeacherSchema.virtual("fullName").get(function () {
 // Ensure virtual fields are serialized
 TeacherSchema.set("toJSON", {
   virtuals: true,
+  transform: function (doc, ret) {
+    delete ret.password; // Remove password from JSON output
+    return ret;
+  },
 });
 
 module.exports = mongoose.model("Teacher", TeacherSchema);
