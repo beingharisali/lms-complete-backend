@@ -1,6 +1,11 @@
 const Teacher = require("../models/Teacher");
+const User = require("../models/User");
 const { StatusCodes } = require("http-status-codes");
-const { BadRequestError, NotFoundError } = require("../errors");
+const {
+  BadRequestError,
+  NotFoundError,
+  UnauthenticatedError,
+} = require("../errors");
 const multer = require("multer");
 const path = require("path");
 
@@ -64,9 +69,31 @@ const uploadFields = upload.fields([
   { name: "additionalDocuments", maxCount: 1 },
 ]);
 
-// Create a new teacher
+// Create a new teacher (Only admin can create)
 const createTeacher = async (req, res) => {
+  // Check if user is admin
+  if (req.user.role !== "admin") {
+    throw new UnauthenticatedError("Only admin can create teachers");
+  }
+
   const teacherData = req.body;
+
+  // Validate required authentication fields
+  if (!teacherData.email || !teacherData.password) {
+    throw new BadRequestError("Email and password are required");
+  }
+
+  // Check if email already exists
+  const existingUser = await User.findOne({ email: teacherData.email });
+  const existingTeacher = await Teacher.findOne({ email: teacherData.email });
+
+  if (existingUser || existingTeacher) {
+    throw new BadRequestError("Email already exists");
+  }
+
+  // Set role automatically
+  teacherData.role = "teacher";
+  teacherData.createdBy = req.user.userId;
 
   // Handle file uploads
   if (req.files) {
@@ -105,17 +132,45 @@ const createTeacher = async (req, res) => {
     }
   }
 
+  // Create teacher
   const teacher = await Teacher.create(teacherData);
+
+  // Create corresponding User record for authentication
+  const user = await User.create({
+    name: `${teacherData.firstName} ${teacherData.lastName}`,
+    email: teacherData.email,
+    password: teacherData.password,
+    role: "teacher",
+    roleReference: teacher._id,
+    roleModel: "Teacher",
+  });
 
   res.status(StatusCodes.CREATED).json({
     success: true,
     message: "Teacher created successfully",
-    teacher,
+    teacher: {
+      ...teacher.toJSON(),
+      userCredentials: {
+        email: user.email,
+        role: user.role,
+      },
+    },
   });
 };
 
 // Get all teachers
 const getAllTeachers = async (req, res) => {
+  // Allow admin and staff with review permissions
+  if (
+    req.user.role !== "admin" &&
+    !(
+      req.user.role === "staff" &&
+      req.user.authorities?.instructorPayment?.review
+    )
+  ) {
+    throw new UnauthenticatedError("Access denied");
+  }
+
   const { status, course, search, page = 1, limit = 10 } = req.query;
 
   const queryObject = {};
@@ -145,7 +200,8 @@ const getAllTeachers = async (req, res) => {
   const teachers = await Teacher.find(queryObject)
     .sort({ createdAt: -1 })
     .skip(skip)
-    .limit(Number(limit));
+    .limit(Number(limit))
+    .populate("createdBy", "name email");
 
   const totalTeachers = await Teacher.countDocuments(queryObject);
 
@@ -163,7 +219,26 @@ const getAllTeachers = async (req, res) => {
 const getTeacher = async (req, res) => {
   const { id } = req.params;
 
-  const teacher = await Teacher.findById(id);
+  // Teachers can only view their own profile, admin and authorized staff can view any
+  if (req.user.role === "teacher" && req.user.userId !== id) {
+    throw new UnauthenticatedError("Access denied");
+  }
+
+  if (
+    req.user.role !== "admin" &&
+    req.user.role !== "teacher" &&
+    !(
+      req.user.role === "staff" &&
+      req.user.authorities?.instructorPayment?.review
+    )
+  ) {
+    throw new UnauthenticatedError("Access denied");
+  }
+
+  const teacher = await Teacher.findById(id).populate(
+    "createdBy",
+    "name email"
+  );
 
   if (!teacher) {
     throw new NotFoundError(`No teacher found with id: ${id}`);
@@ -178,94 +253,125 @@ const getTeacher = async (req, res) => {
 // Update teacher
 const updateTeacher = async (req, res) => {
   const { id } = req.params;
+
+  // Teachers can only update their own profile (limited fields), admin can update any
+  if (req.user.role === "teacher" && req.user.userId !== id) {
+    throw new UnauthenticatedError("Access denied");
+  }
+
+  if (req.user.role !== "admin" && req.user.role !== "teacher") {
+    throw new UnauthenticatedError("Access denied");
+  }
+
   const updateData = {};
 
   // Parse nested objects from form-data
   const bodyData = { ...req.body };
 
-  // Handle qualification object
-  if (bodyData["qualification.degree"] || bodyData["qualification[degree]"]) {
-    updateData.qualification = {
-      degree:
-        bodyData["qualification.degree"] || bodyData["qualification[degree]"],
-      institute:
-        bodyData["qualification.institute"] ||
-        bodyData["qualification[institute]"],
-      passingYear: parseInt(
-        bodyData["qualification.passingYear"] ||
-          bodyData["qualification[passingYear]"]
-      ),
-      obtainedCGPA: parseFloat(
-        bodyData["qualification.obtainedCGPA"] ||
-          bodyData["qualification[obtainedCGPA]"]
-      ),
-    };
-    // Remove these from bodyData so they don't get processed in the main loop
-    delete bodyData["qualification.degree"];
-    delete bodyData["qualification.institute"];
-    delete bodyData["qualification.passingYear"];
-    delete bodyData["qualification.obtainedCGPA"];
-    delete bodyData["qualification[degree]"];
-    delete bodyData["qualification[institute]"];
-    delete bodyData["qualification[passingYear]"];
-    delete bodyData["qualification[obtainedCGPA]"];
-  }
-
-  // Handle unassignedCourses object
-  if (
-    bodyData["unassignedCourses.selectedCourse"] ||
-    bodyData["unassignedCourses[selectedCourse]"]
-  ) {
-    updateData.unassignedCourses = {
-      selectedCourse:
-        bodyData["unassignedCourses.selectedCourse"] ||
-        bodyData["unassignedCourses[selectedCourse]"],
-      designation:
-        bodyData["unassignedCourses.designation"] ||
-        bodyData["unassignedCourses[designation]"],
-      dateOfJoining: new Date(
-        bodyData["unassignedCourses.dateOfJoining"] ||
-          bodyData["unassignedCourses[dateOfJoining]"]
-      ),
-    };
-    delete bodyData["unassignedCourses.selectedCourse"];
-    delete bodyData["unassignedCourses.designation"];
-    delete bodyData["unassignedCourses.dateOfJoining"];
-    delete bodyData["unassignedCourses[selectedCourse]"];
-    delete bodyData["unassignedCourses[designation]"];
-    delete bodyData["unassignedCourses[dateOfJoining]"];
-  }
-
-  // Handle emergencyContact object
-  if (bodyData["emergencyContact.name"] || bodyData["emergencyContact[name]"]) {
-    updateData.emergencyContact = {
-      name:
-        bodyData["emergencyContact.name"] || bodyData["emergencyContact[name]"],
-      relationship:
-        bodyData["emergencyContact.relationship"] ||
-        bodyData["emergencyContact[relationship]"],
-      phoneNumber:
-        bodyData["emergencyContact.phoneNumber"] ||
-        bodyData["emergencyContact[phoneNumber]"],
-    };
-    delete bodyData["emergencyContact.name"];
-    delete bodyData["emergencyContact.relationship"];
-    delete bodyData["emergencyContact.phoneNumber"];
-    delete bodyData["emergencyContact[name]"];
-    delete bodyData["emergencyContact[relationship]"];
-    delete bodyData["emergencyContact[phoneNumber]"];
-  }
-
-  // Only include fields that are actually being updated
-  Object.keys(bodyData).forEach((key) => {
-    if (
-      bodyData[key] !== undefined &&
-      bodyData[key] !== null &&
-      bodyData[key] !== ""
-    ) {
-      updateData[key] = bodyData[key];
+  // If teacher is updating their own profile, restrict fields they can update
+  if (req.user.role === "teacher") {
+    const allowedFields = ["phone", "address", "emergencyContact"];
+    Object.keys(bodyData).forEach((key) => {
+      if (
+        allowedFields.includes(key) &&
+        bodyData[key] !== undefined &&
+        bodyData[key] !== null &&
+        bodyData[key] !== ""
+      ) {
+        updateData[key] = bodyData[key];
+      }
+    });
+  } else {
+    // Admin can update all fields
+    // Handle qualification object
+    if (bodyData["qualification.degree"] || bodyData["qualification[degree]"]) {
+      updateData.qualification = {
+        degree:
+          bodyData["qualification.degree"] || bodyData["qualification[degree]"],
+        institute:
+          bodyData["qualification.institute"] ||
+          bodyData["qualification[institute]"],
+        passingYear: parseInt(
+          bodyData["qualification.passingYear"] ||
+            bodyData["qualification[passingYear]"]
+        ),
+        obtainedCGPA: parseFloat(
+          bodyData["qualification.obtainedCGPA"] ||
+            bodyData["qualification[obtainedCGPA]"]
+        ),
+      };
+      // Remove these from bodyData so they don't get processed in the main loop
+      delete bodyData["qualification.degree"];
+      delete bodyData["qualification.institute"];
+      delete bodyData["qualification.passingYear"];
+      delete bodyData["qualification.obtainedCGPA"];
+      delete bodyData["qualification[degree]"];
+      delete bodyData["qualification[institute]"];
+      delete bodyData["qualification[passingYear]"];
+      delete bodyData["qualification[obtainedCGPA]"];
     }
-  });
+
+    // Handle unassignedCourses object
+    if (
+      bodyData["unassignedCourses.selectedCourse"] ||
+      bodyData["unassignedCourses[selectedCourse]"]
+    ) {
+      updateData.unassignedCourses = {
+        selectedCourse:
+          bodyData["unassignedCourses.selectedCourse"] ||
+          bodyData["unassignedCourses[selectedCourse]"],
+        designation:
+          bodyData["unassignedCourses.designation"] ||
+          bodyData["unassignedCourses[designation]"],
+        dateOfJoining: new Date(
+          bodyData["unassignedCourses.dateOfJoining"] ||
+            bodyData["unassignedCourses[dateOfJoining]"]
+        ),
+      };
+      delete bodyData["unassignedCourses.selectedCourse"];
+      delete bodyData["unassignedCourses.designation"];
+      delete bodyData["unassignedCourses.dateOfJoining"];
+      delete bodyData["unassignedCourses[selectedCourse]"];
+      delete bodyData["unassignedCourses[designation]"];
+      delete bodyData["unassignedCourses[dateOfJoining]"];
+    }
+
+    // Handle emergencyContact object
+    if (
+      bodyData["emergencyContact.name"] ||
+      bodyData["emergencyContact[name]"]
+    ) {
+      updateData.emergencyContact = {
+        name:
+          bodyData["emergencyContact.name"] ||
+          bodyData["emergencyContact[name]"],
+        relationship:
+          bodyData["emergencyContact.relationship"] ||
+          bodyData["emergencyContact[relationship]"],
+        phoneNumber:
+          bodyData["emergencyContact.phoneNumber"] ||
+          bodyData["emergencyContact[phoneNumber]"],
+      };
+      delete bodyData["emergencyContact.name"];
+      delete bodyData["emergencyContact.relationship"];
+      delete bodyData["emergencyContact.phoneNumber"];
+      delete bodyData["emergencyContact[name]"];
+      delete bodyData["emergencyContact[relationship]"];
+      delete bodyData["emergencyContact[phoneNumber]"];
+    }
+
+    // Only include fields that are actually being updated
+    Object.keys(bodyData).forEach((key) => {
+      if (
+        bodyData[key] !== undefined &&
+        bodyData[key] !== null &&
+        bodyData[key] !== "" &&
+        key !== "password" // Password should be updated separately
+      ) {
+        updateData[key] = bodyData[key];
+      }
+    });
+  }
 
   // Handle file uploads for update
   if (req.files) {
@@ -316,8 +422,12 @@ const updateTeacher = async (req, res) => {
   });
 };
 
-// Delete teacher
+// Delete teacher (Only admin)
 const deleteTeacher = async (req, res) => {
+  if (req.user.role !== "admin") {
+    throw new UnauthenticatedError("Only admin can delete teachers");
+  }
+
   const { id } = req.params;
 
   const teacher = await Teacher.findByIdAndDelete(id);
@@ -325,6 +435,9 @@ const deleteTeacher = async (req, res) => {
   if (!teacher) {
     throw new NotFoundError(`No teacher found with id: ${id}`);
   }
+
+  // Also delete the corresponding User record
+  await User.findOneAndDelete({ roleReference: id, roleModel: "Teacher" });
 
   res.status(StatusCodes.OK).json({
     success: true,
@@ -335,6 +448,17 @@ const deleteTeacher = async (req, res) => {
 
 // Get teacher statistics
 const getTeacherStats = async (req, res) => {
+  // Only admin and authorized staff can view statistics
+  if (
+    req.user.role !== "admin" &&
+    !(
+      req.user.role === "staff" &&
+      req.user.authorities?.instructorPayment?.review
+    )
+  ) {
+    throw new UnauthenticatedError("Access denied");
+  }
+
   const totalTeachers = await Teacher.countDocuments();
   const activeTeachers = await Teacher.countDocuments({ status: "Active" });
   const inactiveTeachers = await Teacher.countDocuments({ status: "Inactive" });

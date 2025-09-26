@@ -1,6 +1,11 @@
 const Staff = require("../models/Staff");
+const User = require("../models/User");
 const { StatusCodes } = require("http-status-codes");
-const { BadRequestError, NotFoundError } = require("../errors");
+const {
+  BadRequestError,
+  NotFoundError,
+  UnauthenticatedError,
+} = require("../errors");
 const multer = require("multer");
 const path = require("path");
 
@@ -48,9 +53,31 @@ const uploadFields = upload.fields([
   { name: "additionalDocuments", maxCount: 1 },
 ]);
 
-// Create a new staff member
+// Create a new staff member (Only admin can create)
 const createStaff = async (req, res) => {
+  // Check if user is admin
+  if (req.user.role !== "admin") {
+    throw new UnauthenticatedError("Only admin can create staff members");
+  }
+
   const staffData = req.body;
+
+  // Validate required authentication fields
+  if (!staffData.email || !staffData.password) {
+    throw new BadRequestError("Email and password are required");
+  }
+
+  // Check if email already exists
+  const existingUser = await User.findOne({ email: staffData.email });
+  const existingStaff = await Staff.findOne({ email: staffData.email });
+
+  if (existingUser || existingStaff) {
+    throw new BadRequestError("Email already exists");
+  }
+
+  // Set role automatically
+  staffData.role = "staff";
+  staffData.createdBy = req.user.userId;
 
   // Parse authorities if they are sent as strings
   if (typeof staffData.authorities === "string") {
@@ -79,17 +106,39 @@ const createStaff = async (req, res) => {
     }
   }
 
+  // Create staff
   const staff = await Staff.create(staffData);
+
+  // Create corresponding User record for authentication
+  const user = await User.create({
+    name: `${staffData.firstName} ${staffData.lastName}`,
+    email: staffData.email,
+    password: staffData.password,
+    role: "staff",
+    roleReference: staff._id,
+    roleModel: "Staff",
+  });
 
   res.status(StatusCodes.CREATED).json({
     success: true,
     message: "Staff member created successfully",
-    staff,
+    staff: {
+      ...staff.toJSON(),
+      userCredentials: {
+        email: user.email,
+        role: user.role,
+      },
+    },
   });
 };
 
 // Get all staff members
 const getAllStaff = async (req, res) => {
+  // Only admin can view all staff
+  if (req.user.role !== "admin") {
+    throw new UnauthenticatedError("Only admin can view all staff members");
+  }
+
   const { status, designation, search, page = 1, limit = 10 } = req.query;
 
   const queryObject = {};
@@ -119,7 +168,8 @@ const getAllStaff = async (req, res) => {
   const staff = await Staff.find(queryObject)
     .sort({ createdAt: -1 })
     .skip(skip)
-    .limit(Number(limit));
+    .limit(Number(limit))
+    .populate("createdBy", "name email");
 
   const totalStaff = await Staff.countDocuments(queryObject);
 
@@ -137,7 +187,16 @@ const getAllStaff = async (req, res) => {
 const getStaff = async (req, res) => {
   const { id } = req.params;
 
-  const staff = await Staff.findById(id);
+  // Staff can only view their own profile, admin can view any
+  if (req.user.role === "staff" && req.user.userId !== id) {
+    throw new UnauthenticatedError("Access denied");
+  }
+
+  if (req.user.role !== "admin" && req.user.role !== "staff") {
+    throw new UnauthenticatedError("Access denied");
+  }
+
+  const staff = await Staff.findById(id).populate("createdBy", "name email");
 
   if (!staff) {
     throw new NotFoundError(`No staff member found with id: ${id}`);
@@ -152,78 +211,109 @@ const getStaff = async (req, res) => {
 // Update staff member
 const updateStaff = async (req, res) => {
   const { id } = req.params;
+
+  // Staff can only update their own profile (limited fields), admin can update any
+  if (req.user.role === "staff" && req.user.userId !== id) {
+    throw new UnauthenticatedError("Access denied");
+  }
+
+  if (req.user.role !== "admin" && req.user.role !== "staff") {
+    throw new UnauthenticatedError("Access denied");
+  }
+
   const updateData = {};
 
   // Parse nested objects from form-data
   const bodyData = { ...req.body };
 
-  // Handle qualification object
-  if (
-    bodyData["qualification.education"] ||
-    bodyData["qualification[education]"]
-  ) {
-    updateData.qualification = {
-      education:
-        bodyData["qualification.education"] ||
-        bodyData["qualification[education]"],
-      institute:
-        bodyData["qualification.institute"] ||
-        bodyData["qualification[institute]"],
-      yearOfPassing: parseInt(
-        bodyData["qualification.yearOfPassing"] ||
-          bodyData["qualification[yearOfPassing]"]
-      ),
-      designation:
-        bodyData["qualification.designation"] ||
-        bodyData["qualification[designation]"],
-    };
-    // Remove these from bodyData so they don't get processed in the main loop
-    delete bodyData["qualification.education"];
-    delete bodyData["qualification.institute"];
-    delete bodyData["qualification.yearOfPassing"];
-    delete bodyData["qualification.designation"];
-    delete bodyData["qualification[education]"];
-    delete bodyData["qualification[institute]"];
-    delete bodyData["qualification[yearOfPassing]"];
-    delete bodyData["qualification[designation]"];
-  }
-
-  // Handle emergencyContact object
-  if (bodyData["emergencyContact.name"] || bodyData["emergencyContact[name]"]) {
-    updateData.emergencyContact = {
-      name:
-        bodyData["emergencyContact.name"] || bodyData["emergencyContact[name]"],
-      relationship:
-        bodyData["emergencyContact.relationship"] ||
-        bodyData["emergencyContact[relationship]"],
-      phoneNumber:
-        bodyData["emergencyContact.phoneNumber"] ||
-        bodyData["emergencyContact[phoneNumber]"],
-    };
-    delete bodyData["emergencyContact.name"];
-    delete bodyData["emergencyContact.relationship"];
-    delete bodyData["emergencyContact.phoneNumber"];
-    delete bodyData["emergencyContact[name]"];
-    delete bodyData["emergencyContact[relationship]"];
-    delete bodyData["emergencyContact[phoneNumber]"];
-  }
-
-  // Handle authorities object
-  if (bodyData.authorities && typeof bodyData.authorities === "string") {
-    updateData.authorities = JSON.parse(bodyData.authorities);
-    delete bodyData.authorities;
-  }
-
-  // Only include fields that are actually being updated
-  Object.keys(bodyData).forEach((key) => {
+  // If staff is updating their own profile, restrict fields they can update
+  if (req.user.role === "staff") {
+    const allowedFields = ["phone", "address", "emergencyContact"];
+    Object.keys(bodyData).forEach((key) => {
+      if (
+        allowedFields.includes(key) &&
+        bodyData[key] !== undefined &&
+        bodyData[key] !== null &&
+        bodyData[key] !== ""
+      ) {
+        updateData[key] = bodyData[key];
+      }
+    });
+  } else {
+    // Admin can update all fields
+    // Handle qualification object
     if (
-      bodyData[key] !== undefined &&
-      bodyData[key] !== null &&
-      bodyData[key] !== ""
+      bodyData["qualification.education"] ||
+      bodyData["qualification[education]"]
     ) {
-      updateData[key] = bodyData[key];
+      updateData.qualification = {
+        education:
+          bodyData["qualification.education"] ||
+          bodyData["qualification[education]"],
+        institute:
+          bodyData["qualification.institute"] ||
+          bodyData["qualification[institute]"],
+        yearOfPassing: parseInt(
+          bodyData["qualification.yearOfPassing"] ||
+            bodyData["qualification[yearOfPassing]"]
+        ),
+        designation:
+          bodyData["qualification.designation"] ||
+          bodyData["qualification[designation]"],
+      };
+      // Remove these from bodyData so they don't get processed in the main loop
+      delete bodyData["qualification.education"];
+      delete bodyData["qualification.institute"];
+      delete bodyData["qualification.yearOfPassing"];
+      delete bodyData["qualification.designation"];
+      delete bodyData["qualification[education]"];
+      delete bodyData["qualification[institute]"];
+      delete bodyData["qualification[yearOfPassing]"];
+      delete bodyData["qualification[designation]"];
     }
-  });
+
+    // Handle emergencyContact object
+    if (
+      bodyData["emergencyContact.name"] ||
+      bodyData["emergencyContact[name]"]
+    ) {
+      updateData.emergencyContact = {
+        name:
+          bodyData["emergencyContact.name"] ||
+          bodyData["emergencyContact[name]"],
+        relationship:
+          bodyData["emergencyContact.relationship"] ||
+          bodyData["emergencyContact[relationship]"],
+        phoneNumber:
+          bodyData["emergencyContact.phoneNumber"] ||
+          bodyData["emergencyContact[phoneNumber]"],
+      };
+      delete bodyData["emergencyContact.name"];
+      delete bodyData["emergencyContact.relationship"];
+      delete bodyData["emergencyContact.phoneNumber"];
+      delete bodyData["emergencyContact[name]"];
+      delete bodyData["emergencyContact[relationship]"];
+      delete bodyData["emergencyContact[phoneNumber]"];
+    }
+
+    // Handle authorities object
+    if (bodyData.authorities && typeof bodyData.authorities === "string") {
+      updateData.authorities = JSON.parse(bodyData.authorities);
+      delete bodyData.authorities;
+    }
+
+    // Only include fields that are actually being updated
+    Object.keys(bodyData).forEach((key) => {
+      if (
+        bodyData[key] !== undefined &&
+        bodyData[key] !== null &&
+        bodyData[key] !== "" &&
+        key !== "password" // Password should be updated separately
+      ) {
+        updateData[key] = bodyData[key];
+      }
+    });
+  }
 
   // Handle file uploads for update
   if (req.files) {
@@ -264,8 +354,12 @@ const updateStaff = async (req, res) => {
   });
 };
 
-// Delete staff member
+// Delete staff member (Only admin)
 const deleteStaff = async (req, res) => {
+  if (req.user.role !== "admin") {
+    throw new UnauthenticatedError("Only admin can delete staff members");
+  }
+
   const { id } = req.params;
 
   const staff = await Staff.findByIdAndDelete(id);
@@ -273,6 +367,9 @@ const deleteStaff = async (req, res) => {
   if (!staff) {
     throw new NotFoundError(`No staff member found with id: ${id}`);
   }
+
+  // Also delete the corresponding User record
+  await User.findOneAndDelete({ roleReference: id, roleModel: "Staff" });
 
   res.status(StatusCodes.OK).json({
     success: true,
@@ -283,6 +380,11 @@ const deleteStaff = async (req, res) => {
 
 // Get staff statistics
 const getStaffStats = async (req, res) => {
+  // Only admin can view statistics
+  if (req.user.role !== "admin") {
+    throw new UnauthenticatedError("Only admin can view staff statistics");
+  }
+
   const totalStaff = await Staff.countDocuments();
   const activeStaff = await Staff.countDocuments({ status: "Active" });
   const inactiveStaff = await Staff.countDocuments({ status: "Inactive" });
