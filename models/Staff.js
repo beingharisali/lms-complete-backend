@@ -1,7 +1,30 @@
 const mongoose = require("mongoose");
+const bcrypt = require("bcryptjs");
 
 const StaffSchema = new mongoose.Schema(
   {
+    // Authentication fields
+    email: {
+      type: String,
+      required: [true, "Please provide email"],
+      match: [
+        /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/,
+        "Please provide a valid email",
+      ],
+      unique: true,
+    },
+    password: {
+      type: String,
+      required: [true, "Please provide password"],
+      minlength: 6,
+    },
+    role: {
+      type: String,
+      default: "staff",
+      enum: ["staff"],
+      immutable: true, // Prevents role modification after creation
+    },
+
     // Basic Information
     firstName: {
       type: String,
@@ -29,15 +52,6 @@ const StaffSchema = new mongoose.Schema(
         /^[\+]?[0-9\s\-\(\)]{8,20}$/,
         "Please provide a valid phone number",
       ],
-    },
-    email: {
-      type: String,
-      required: [true, "Please provide email"],
-      match: [
-        /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/,
-        "Please provide a valid email",
-      ],
-      unique: true,
     },
     cnic: {
       type: String,
@@ -154,10 +168,44 @@ const StaffSchema = new mongoose.Schema(
       enum: ["Active", "Inactive", "On Leave", "Terminated"],
       default: "Active",
     },
+
+    // Track who created this staff member (admin user ID)
+    createdBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
   },
   {
     timestamps: true,
   }
 );
+
+// Hash password before saving
+StaffSchema.pre("save", async function () {
+  if (!this.isModified("password")) return;
+  const salt = await bcrypt.genSalt(10);
+  this.password = await bcrypt.hash(this.password, salt);
+});
+
+// Method to compare password
+StaffSchema.methods.comparePassword = async function (candidatePassword) {
+  const isMatch = await bcrypt.compare(candidatePassword, this.password);
+  return isMatch;
+};
+
+// Virtual for full name
+StaffSchema.virtual("fullName").get(function () {
+  return `${this.firstName} ${this.lastName}`;
+});
+
+// Ensure virtual fields are serialized
+StaffSchema.set("toJSON", {
+  virtuals: true,
+  transform: function (doc, ret) {
+    delete ret.password; // Remove password from JSON output
+    return ret;
+  },
+});
 
 module.exports = mongoose.model("Staff", StaffSchema);

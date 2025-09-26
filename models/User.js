@@ -26,8 +26,20 @@ const UserSchema = new mongoose.Schema(
     },
     role: {
       type: String,
-      enum: ["student", "instructor", "admin"],
+      enum: ["student", "teacher", "staff", "admin"],
       default: "student",
+    },
+    // Reference to the specific role document (Student, Teacher, or Staff)
+    roleReference: {
+      type: mongoose.Schema.Types.ObjectId,
+      refPath: "roleModel",
+    },
+    roleModel: {
+      type: String,
+      enum: ["Student", "Teacher", "Staff"],
+      required: function () {
+        return this.role !== "admin";
+      },
     },
   },
   {
@@ -54,7 +66,13 @@ UserSchema.methods.createJWT = function () {
   expiresIn = expiresIn.replace(/['"]/g, "").trim();
 
   return jwt.sign(
-    { userId: this._id, name: this.name, role: this.role },
+    {
+      userId: this._id,
+      name: this.name,
+      role: this.role,
+      roleReference: this.roleReference,
+      roleModel: this.roleModel,
+    },
     process.env.JWT_SECRET,
     {
       expiresIn: expiresIn,
