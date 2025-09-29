@@ -1,6 +1,11 @@
 const Student = require("../models/Student");
+const User = require("../models/User");
 const { StatusCodes } = require("http-status-codes");
-const { BadRequestError, NotFoundError } = require("../errors");
+const {
+  BadRequestError,
+  NotFoundError,
+  UnauthenticatedError,
+} = require("../errors");
 const multer = require("multer");
 const path = require("path");
 
@@ -63,9 +68,31 @@ const uploadFields = upload.fields([
   { name: "additionalDocuments", maxCount: 1 },
 ]);
 
-// Create a new student
+// Create a new student (Only admin can create)
 const createStudent = async (req, res) => {
+  // Check if user is admin
+  if (req.user.role !== "admin") {
+    throw new UnauthenticatedError("Only admin can create students");
+  }
+
   const studentData = req.body;
+
+  // Validate required authentication fields
+  if (!studentData.email || !studentData.password) {
+    throw new BadRequestError("Email and password are required");
+  }
+
+  // Check if email already exists
+  const existingUser = await User.findOne({ email: studentData.email });
+  const existingStudent = await Student.findOne({ email: studentData.email });
+
+  if (existingUser || existingStudent) {
+    throw new BadRequestError("Email already exists");
+  }
+
+  // Set role automatically
+  studentData.role = "student";
+  studentData.createdBy = req.user.userId;
 
   // Handle file uploads
   if (req.files) {
@@ -98,17 +125,42 @@ const createStudent = async (req, res) => {
     }
   }
 
+  // Create student
   const student = await Student.create(studentData);
+
+  // Create corresponding User record for authentication
+  const user = await User.create({
+    name: `${studentData.firstName} ${studentData.lastName}`,
+    email: studentData.email,
+    password: studentData.password,
+    role: "student",
+    roleReference: student._id,
+    roleModel: "Student",
+  });
 
   res.status(StatusCodes.CREATED).json({
     success: true,
     message: "Student created successfully",
-    student,
+    student: {
+      ...student.toJSON(),
+      userCredentials: {
+        email: user.email,
+        role: user.role,
+      },
+    },
   });
 };
 
 // Get all students
 const getAllStudents = async (req, res) => {
+  // Allow admin and staff with review permissions
+  if (
+    req.user.role !== "admin" &&
+    !(req.user.role === "staff" && req.user.authorities?.students?.review)
+  ) {
+    throw new UnauthenticatedError("Access denied");
+  }
+
   const { status, course, search, page = 1, limit = 10 } = req.query;
 
   const queryObject = {};
@@ -138,7 +190,8 @@ const getAllStudents = async (req, res) => {
   const students = await Student.find(queryObject)
     .sort({ createdAt: -1 })
     .skip(skip)
-    .limit(Number(limit));
+    .limit(Number(limit))
+    .populate("createdBy", "name email");
 
   const totalStudents = await Student.countDocuments(queryObject);
 
@@ -156,7 +209,23 @@ const getAllStudents = async (req, res) => {
 const getStudent = async (req, res) => {
   const { id } = req.params;
 
-  const student = await Student.findById(id);
+  // Students can only view their own profile, admin and authorized staff can view any
+  if (req.user.role === "student" && req.user.userId !== id) {
+    throw new UnauthenticatedError("Access denied");
+  }
+
+  if (
+    req.user.role !== "admin" &&
+    req.user.role !== "student" &&
+    !(req.user.role === "staff" && req.user.authorities?.students?.review)
+  ) {
+    throw new UnauthenticatedError("Access denied");
+  }
+
+  const student = await Student.findById(id).populate(
+    "createdBy",
+    "name email"
+  );
 
   if (!student) {
     throw new NotFoundError(`No student found with id: ${id}`);
@@ -171,18 +240,48 @@ const getStudent = async (req, res) => {
 // Update student
 const updateStudent = async (req, res) => {
   const { id } = req.params;
+
+  // Students can only update their own profile (limited fields), admin and authorized staff can update any
+  if (req.user.role === "student" && req.user.userId !== id) {
+    throw new UnauthenticatedError("Access denied");
+  }
+
+  if (
+    req.user.role !== "admin" &&
+    req.user.role !== "student" &&
+    !(req.user.role === "staff" && req.user.authorities?.students?.edit)
+  ) {
+    throw new UnauthenticatedError("Access denied");
+  }
+
   const updateData = {};
 
-  // Only include fields that are actually being updated
-  Object.keys(req.body).forEach((key) => {
-    if (
-      req.body[key] !== undefined &&
-      req.body[key] !== null &&
-      req.body[key] !== ""
-    ) {
-      updateData[key] = req.body[key];
-    }
-  });
+  // If student is updating their own profile, restrict fields they can update
+  if (req.user.role === "student") {
+    const allowedFields = ["phone", "address", "emergencyContact"];
+    Object.keys(req.body).forEach((key) => {
+      if (
+        allowedFields.includes(key) &&
+        req.body[key] !== undefined &&
+        req.body[key] !== null &&
+        req.body[key] !== ""
+      ) {
+        updateData[key] = req.body[key];
+      }
+    });
+  } else {
+    // Admin and authorized staff can update all fields
+    Object.keys(req.body).forEach((key) => {
+      if (
+        req.body[key] !== undefined &&
+        req.body[key] !== null &&
+        req.body[key] !== "" &&
+        key !== "password" // Password should be updated separately
+      ) {
+        updateData[key] = req.body[key];
+      }
+    });
+  }
 
   // Handle file uploads for update
   if (req.files) {
@@ -229,8 +328,12 @@ const updateStudent = async (req, res) => {
   });
 };
 
-// Delete student
+// Delete student (Only admin)
 const deleteStudent = async (req, res) => {
+  if (req.user.role !== "admin") {
+    throw new UnauthenticatedError("Only admin can delete students");
+  }
+
   const { id } = req.params;
 
   const student = await Student.findByIdAndDelete(id);
@@ -238,6 +341,9 @@ const deleteStudent = async (req, res) => {
   if (!student) {
     throw new NotFoundError(`No student found with id: ${id}`);
   }
+
+  // Also delete the corresponding User record
+  await User.findOneAndDelete({ roleReference: id, roleModel: "Student" });
 
   res.status(StatusCodes.OK).json({
     success: true,
@@ -248,6 +354,14 @@ const deleteStudent = async (req, res) => {
 
 // Get student statistics
 const getStudentStats = async (req, res) => {
+  // Only admin and authorized staff can view statistics
+  if (
+    req.user.role !== "admin" &&
+    !(req.user.role === "staff" && req.user.authorities?.students?.review)
+  ) {
+    throw new UnauthenticatedError("Access denied");
+  }
+
   const totalStudents = await Student.countDocuments();
   const activeStudents = await Student.countDocuments({ status: "Active" });
   const inactiveStudents = await Student.countDocuments({ status: "Inactive" });
