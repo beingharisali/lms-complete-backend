@@ -26,6 +26,7 @@ const app = express();
 const path = require("path");
 const fs = require("fs");
 
+// DB + middleware
 const connectDB = require("./db/connect");
 const authenticateUser = require("./middleware/authentication");
 
@@ -49,7 +50,8 @@ const authRouter = require("./routes/auth");
 const studentsRouter = require("./routes/students");
 const teachersRouter = require("./routes/teachers");
 const staffRouter = require("./routes/staff");
-const visitorsRouter = require("./routes/visitors"); // Add this import
+const visitorsRouter = require("./routes/visitors");
+const quizzesRouter = require("./routes/quizRoutes"); // 👈 Added
 
 // error handler
 const notFoundMiddleware = require("./middleware/not-found");
@@ -88,7 +90,8 @@ app.use("/api/v1/auth", authRouter);
 app.use("/api/v1/students", studentsRouter);
 app.use("/api/v1/teachers", teachersRouter);
 app.use("/api/v1/staff", staffRouter);
-app.use("/api/v1/visitors", visitorsRouter); // Add this line
+app.use("/api/v1/visitors", visitorsRouter);
+app.use("/api/v1/quizzes", quizzesRouter); // 👈 Quiz CRUD endpoints
 
 app.use(notFoundMiddleware);
 app.use(errorHandlerMiddleware);
