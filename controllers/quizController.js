@@ -1,14 +1,13 @@
 const Quiz = require("../models/Quiz");
 
-// @desc   Create a new quiz
-// @route  POST /api/quizzes
+// Create quiz
 const createQuiz = async (req, res) => {
   try {
     const { title, description, validTill, totalMarks, allowMultiple, questions } = req.body;
     let filePath = null;
 
     if (req.file) {
-      filePath = req.file.path; // multer saves file path
+      filePath = req.file.path;
     }
 
     const quiz = await Quiz.create({
@@ -27,8 +26,7 @@ const createQuiz = async (req, res) => {
   }
 };
 
-// @desc   Get all quizzes
-// @route  GET /api/quizzes
+// Get all quizzes
 const getQuizzes = async (req, res) => {
   try {
     const quizzes = await Quiz.find().sort({ createdAt: -1 });
@@ -38,8 +36,7 @@ const getQuizzes = async (req, res) => {
   }
 };
 
-// @desc   Get single quiz by id
-// @route  GET /api/quizzes/:id
+// Get single quiz
 const getQuizById = async (req, res) => {
   try {
     const quiz = await Quiz.findById(req.params.id);
@@ -50,20 +47,12 @@ const getQuizById = async (req, res) => {
   }
 };
 
-// @desc   Update quiz
-// @route  PUT /api/quizzes/:id
+// Update quiz
 const updateQuiz = async (req, res) => {
   try {
     const { title, description, validTill, totalMarks, allowMultiple, questions } = req.body;
 
-    let updateData = {
-      title,
-      description,
-      validTill,
-      totalMarks,
-      allowMultiple,
-      questions,
-    };
+    let updateData = { title, description, validTill, totalMarks, allowMultiple, questions };
 
     if (req.file) {
       updateData.file = req.file.path;
@@ -82,8 +71,7 @@ const updateQuiz = async (req, res) => {
   }
 };
 
-// @desc   Delete quiz
-// @route  DELETE /api/quizzes/:id
+// Delete quiz
 const deleteQuiz = async (req, res) => {
   try {
     const quiz = await Quiz.findByIdAndDelete(req.params.id);
@@ -94,10 +82,4 @@ const deleteQuiz = async (req, res) => {
   }
 };
 
-module.exports = {
-  createQuiz,
-  getQuizzes,
-  getQuizById,
-  updateQuiz,
-  deleteQuiz,
-};
+module.exports = { createQuiz, getQuizzes, getQuizById, updateQuiz, deleteQuiz };
