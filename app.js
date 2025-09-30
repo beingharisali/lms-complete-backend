@@ -50,6 +50,7 @@ const studentsRouter = require("./routes/students");
 const teachersRouter = require("./routes/teachers");
 const staffRouter = require("./routes/staff");
 const visitorsRouter = require("./routes/visitors"); // Add this import
+const coursesRouter = require("./routes/courses");
 
 // error handler
 const notFoundMiddleware = require("./middleware/not-found");
@@ -89,6 +90,7 @@ app.use("/api/v1/students", studentsRouter);
 app.use("/api/v1/teachers", teachersRouter);
 app.use("/api/v1/staff", staffRouter);
 app.use("/api/v1/visitors", visitorsRouter); // Add this line
+app.use("/api/v1/courses", coursesRouter);
 
 app.use(notFoundMiddleware);
 app.use(errorHandlerMiddleware);
