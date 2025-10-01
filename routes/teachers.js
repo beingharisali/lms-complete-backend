@@ -9,16 +9,21 @@ const {
   updateTeacher,
   deleteTeacher,
   getTeacherStats,
+  getInstructorsList, // ADD THIS LINE
   uploadFields,
 } = require("../controllers/teachers");
 
 // All routes require authentication
 router.use(authenticateUser);
 
+// Get instructors list for dropdown (must be before /:id route)
+router.route("/instructors-list").get(getInstructorsList);
+
+// Statistics route
+router.route("/stats").get(getTeacherStats);
+
 // Routes
 router.route("/").get(getAllTeachers).post(uploadFields, createTeacher);
-
-router.route("/stats").get(getTeacherStats);
 
 router
   .route("/:id")
