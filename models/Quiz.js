@@ -18,7 +18,7 @@ const QuizSchema = new mongoose.Schema(
     validTill: { type: Date, required: true },
     totalMarks: { type: Number, required: true },
     allowMultiple: { type: Boolean, default: false },
-    file: { type: String }, // store file path / URL
+    file: { type: String },
     questions: [QuestionSchema],
   },
   { timestamps: true }

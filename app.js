@@ -50,8 +50,12 @@ const authRouter = require("./routes/auth");
 const studentsRouter = require("./routes/students");
 const teachersRouter = require("./routes/teachers");
 const staffRouter = require("./routes/staff");
-const visitorsRouter = require("./routes/visitors"); // Add this import
-const assignmentRoutes = require("./routes/assignmentRoutes");// error handler
+const visitorsRouter = require("./routes/visitors");
+const assignmentRoutes = require("./routes/assignmentRoutes");
+const quizRoutes = require("./routes/quizRoutes"); // ✅ add quiz routes
+const coursesRouter = require("./routes/courses");
+
+// error handler
 const notFoundMiddleware = require("./middleware/not-found");
 const errorHandlerMiddleware = require("./middleware/error-handler");
 
@@ -79,6 +83,7 @@ app.use(
 );
 app.use(xss());
 
+// Test route
 app.get("/", (req, res) => {
   res.send('<h1>LMS API</h1><a href="/api-docs">Documentation</a>');
 });
@@ -88,9 +93,12 @@ app.use("/api/v1/auth", authRouter);
 app.use("/api/v1/students", studentsRouter);
 app.use("/api/v1/teachers", teachersRouter);
 app.use("/api/v1/staff", staffRouter);
-app.use("/api/v1/visitors", visitorsRouter); // Add this line
+app.use("/api/v1/visitors", visitorsRouter);
 app.use("/api/v1/assignments", assignmentRoutes);
+app.use("/api/v1/quizzes", quizRoutes); // ✅ mount quizzes API
+app.use("/api/v1/courses", coursesRouter);
 
+// middleware
 app.use(notFoundMiddleware);
 app.use(errorHandlerMiddleware);
 
@@ -100,7 +108,7 @@ const start = async () => {
   try {
     await connectDB(process.env.MONGO_URI);
     app.listen(port, () =>
-      console.log(`Server is listening on port ${port}...`)
+      console.log(`✅ Server is listening on port ${port}...`)
     );
   } catch (error) {
     console.log(error);
