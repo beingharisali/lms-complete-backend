@@ -503,6 +503,34 @@ const getTeacherStats = async (req, res) => {
   });
 };
 
+// Get all instructors list (name and email only) - for dropdown
+const getInstructorsList = async (req, res) => {
+  // Only admin can access this
+  if (req.user.role !== "admin") {
+    throw new UnauthenticatedError("Only admin can access instructor list");
+  }
+
+  // Only get active teachers
+  const teachers = await Teacher.find({ status: "Active" })
+    .select("firstName lastName email teacherId")
+    .sort({ firstName: 1 });
+
+  // Format the data for dropdown
+  const instructorsList = teachers.map((teacher) => ({
+    id: teacher._id,
+    teacherId: teacher.teacherId,
+    name: `${teacher.firstName} ${teacher.lastName}`,
+    email: teacher.email,
+    fullDisplay: `${teacher.firstName} ${teacher.lastName} (${teacher.email})`,
+  }));
+
+  res.status(StatusCodes.OK).json({
+    success: true,
+    count: instructorsList.length,
+    instructors: instructorsList,
+  });
+};
+
 module.exports = {
   createTeacher,
   getAllTeachers,
@@ -510,5 +538,6 @@ module.exports = {
   updateTeacher,
   deleteTeacher,
   getTeacherStats,
-  uploadFields, // Export for use in routes
+  getInstructorsList,
+  uploadFields,
 };
