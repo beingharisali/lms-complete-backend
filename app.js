@@ -94,7 +94,7 @@ app.use("/api/v1/students", studentsRouter);
 app.use("/api/v1/teachers", teachersRouter);
 app.use("/api/v1/staff", staffRouter);
 app.use("/api/v1/visitors", visitorsRouter);
-app.use("/api/assignments", assignmentRoutes);
+app.use("/api/v1/assignments", assignmentRoutes);
 app.use("/api/v1/quizzes", quizRoutes); // ✅ mount quizzes API
 app.use("/api/v1/courses", coursesRouter);
 
