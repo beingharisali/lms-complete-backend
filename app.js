@@ -26,6 +26,7 @@ const app = express();
 const path = require("path");
 const fs = require("fs");
 
+// DB + middleware
 const connectDB = require("./db/connect");
 const authenticateUser = require("./middleware/authentication");
 

@@ -16,7 +16,7 @@ const assignmentSchema = new mongoose.Schema(
     title: { type: String, required: true, trim: true },
     description: { type: String },
     dueDate: { type: Date, required: true },
-    file: { type: String }, // uploaded file path
+    file: { type: String,require: true}, // uploaded file path
     questions: [questionSchema],
   },
   { timestamps: true }
