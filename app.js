@@ -53,6 +53,7 @@ const staffRouter = require("./routes/staff");
 const visitorsRouter = require("./routes/visitors");
 const assignmentRoutes = require("./routes/assignmentRoutes");
 const quizRoutes = require("./routes/quizRoutes"); // ✅ add quiz routes
+const coursesRouter = require("./routes/courses");
 
 // error handler
 const notFoundMiddleware = require("./middleware/not-found");
@@ -95,6 +96,7 @@ app.use("/api/v1/staff", staffRouter);
 app.use("/api/v1/visitors", visitorsRouter);
 app.use("/api/assignments", assignmentRoutes);
 app.use("/api/v1/quizzes", quizRoutes); // ✅ mount quizzes API
+app.use("/api/v1/courses", coursesRouter);
 
 // middleware
 app.use(notFoundMiddleware);
