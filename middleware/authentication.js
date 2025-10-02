@@ -2,22 +2,24 @@ const jwt = require("jsonwebtoken");
 const { UnauthenticatedError } = require("../errors");
 
 const auth = async (req, res, next) => {
-  // check header
-  const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith("Bearer")) {
+  // Get token from cookies instead of Authorization header
+  const token = req.cookies?.token;
+
+  if (!token) {
     throw new UnauthenticatedError("Authentication invalid");
   }
-  const token = authHeader.split(" ")[1];
 
   try {
     const payload = jwt.verify(token, process.env.JWT_SECRET);
-    // attach the user to the routes
+
+    // Attach user data to request object
     req.user = {
       userId: payload.userId,
       name: payload.name,
       role: payload.role,
       email: payload.email,
     };
+
     next();
   } catch (error) {
     throw new UnauthenticatedError("Authentication invalid");
