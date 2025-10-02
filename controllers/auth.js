@@ -8,21 +8,30 @@ const {
   UnauthenticatedError,
   NotFoundError,
 } = require("../errors");
+const jwt = require("jsonwebtoken");
 
-// Register for admin users only (manual admin creation)
+// Helper function to set JWT cookie
+const attachCookie = (res, token) => {
+  res.cookie("token", token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production", // HTTPS only in production
+    sameSite: process.env.NODE_ENV === "production" ? "None" : "Lax",
+    maxAge: 1000 * 60 * 60 * 24 * 7, // 7 days
+  });
+};
+
+// Register for admin users only
 const register = async (req, res) => {
   const { name, email, password, role = "admin" } = req.body;
 
-  // Only allow admin role registration through this endpoint
   if (role !== "admin") {
     throw new BadRequestError("This endpoint is only for admin registration");
   }
 
-  // Create user
   const user = await User.create({ name, email, password, role });
-
-  // Generate JWT token
   const token = user.createJWT();
+
+  attachCookie(res, token);
 
   res.status(StatusCodes.CREATED).json({
     success: true,
@@ -32,11 +41,10 @@ const register = async (req, res) => {
       email: user.email,
       role: user.role,
     },
-    token,
   });
 };
 
-// Unified login for all user types
+// Unified login for all roles
 const login = async (req, res) => {
   const { email, password } = req.body;
 
@@ -47,17 +55,14 @@ const login = async (req, res) => {
   let user = null;
   let roleData = null;
 
-  // First, try to find user in the main User collection (for admins)
+  // Try main User collection first (admins)
   user = await User.findOne({ email });
 
   if (user) {
-    // User found in main User collection
     const isPasswordCorrect = await user.comparePassword(password);
-    if (!isPasswordCorrect) {
+    if (!isPasswordCorrect)
       throw new UnauthenticatedError("Invalid Credentials");
-    }
 
-    // If user has a role reference, populate the role data
     if (user.roleReference && user.roleModel) {
       const Model =
         user.roleModel === "Student"
@@ -68,53 +73,29 @@ const login = async (req, res) => {
       roleData = await Model.findById(user.roleReference);
     }
   } else {
-    // User not found in main User collection, search in role-specific collections
+    // Search in role-specific collections
     const studentUser = await Student.findOne({ email });
     const teacherUser = await Teacher.findOne({ email });
     const staffUser = await Staff.findOne({ email });
 
-    if (studentUser) {
-      const isPasswordCorrect = await studentUser.comparePassword(password);
-      if (!isPasswordCorrect) {
-        throw new UnauthenticatedError("Invalid Credentials");
-      }
-      user = {
-        _id: studentUser._id,
-        name: `${studentUser.firstName} ${studentUser.lastName}`,
-        email: studentUser.email,
-        role: studentUser.role,
-      };
-      roleData = studentUser;
-    } else if (teacherUser) {
-      const isPasswordCorrect = await teacherUser.comparePassword(password);
-      if (!isPasswordCorrect) {
-        throw new UnauthenticatedError("Invalid Credentials");
-      }
-      user = {
-        _id: teacherUser._id,
-        name: `${teacherUser.firstName} ${teacherUser.lastName}`,
-        email: teacherUser.email,
-        role: teacherUser.role,
-      };
-      roleData = teacherUser;
-    } else if (staffUser) {
-      const isPasswordCorrect = await staffUser.comparePassword(password);
-      if (!isPasswordCorrect) {
-        throw new UnauthenticatedError("Invalid Credentials");
-      }
-      user = {
-        _id: staffUser._id,
-        name: `${staffUser.firstName} ${staffUser.lastName}`,
-        email: staffUser.email,
-        role: staffUser.role,
-      };
-      roleData = staffUser;
-    } else {
+    const matchedUser = studentUser || teacherUser || staffUser || null;
+
+    if (!matchedUser) throw new UnauthenticatedError("Invalid Credentials");
+
+    const isPasswordCorrect = await matchedUser.comparePassword(password);
+    if (!isPasswordCorrect)
       throw new UnauthenticatedError("Invalid Credentials");
-    }
+
+    user = {
+      _id: matchedUser._id,
+      name: `${matchedUser.firstName} ${matchedUser.lastName}`,
+      email: matchedUser.email,
+      role: matchedUser.role,
+    };
+    roleData = matchedUser;
   }
 
-  // Generate JWT token with role information
+  // Sign JWT & set cookie
   const tokenPayload = {
     userId: user._id,
     name: user.name,
@@ -122,11 +103,11 @@ const login = async (req, res) => {
     email: user.email,
   };
 
-  const token = require("jsonwebtoken").sign(
-    tokenPayload,
-    process.env.JWT_SECRET,
-    { expiresIn: process.env.JWT_LIFETIME || "30d" }
-  );
+  const token = jwt.sign(tokenPayload, process.env.JWT_SECRET, {
+    expiresIn: process.env.JWT_LIFETIME || "30d",
+  });
+
+  attachCookie(res, token);
 
   res.status(StatusCodes.OK).json({
     success: true,
@@ -135,9 +116,8 @@ const login = async (req, res) => {
       name: user.name,
       email: user.email,
       role: user.role,
-      roleData: roleData, // Include specific role data
+      roleData: roleData,
     },
-    token,
   });
 };
 
@@ -157,18 +137,26 @@ const getProfile = async (req, res) => {
     user = await Staff.findById(userId).select("-password");
   }
 
-  if (!user) {
-    throw new NotFoundError("User not found");
-  }
+  if (!user) throw new NotFoundError("User not found");
 
-  res.status(StatusCodes.OK).json({
-    success: true,
-    user,
+  res.status(StatusCodes.OK).json({ success: true, user });
+};
+
+// Logout (clear cookie)
+const logout = (req, res) => {
+  res.clearCookie("token", {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: process.env.NODE_ENV === "production" ? "None" : "Lax",
+    path: "/",
   });
+
+  res.status(StatusCodes.OK).json({ success: true, message: "Logged out" });
 };
 
 module.exports = {
   register,
   login,
   getProfile,
+  logout,
 };
