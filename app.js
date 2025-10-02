@@ -1,5 +1,6 @@
 require("dotenv").config();
 require("express-async-errors");
+const cookieParser = require("cookie-parser");
 
 // Check if required environment variables are set
 if (!process.env.JWT_SECRET) {
@@ -71,6 +72,7 @@ app.use(
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 app.use(express.json());
+app.use(cookieParser());
 app.use(helmet());
 app.use(
   cors({
