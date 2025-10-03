@@ -15,6 +15,7 @@ const attachCookie = (res, token) => {
   res.cookie("token", token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production", // HTTPS only in production
+    // sameSite: process.env.NODE_ENV === "production" ? "None" : "Lax",
     sameSite: process.env.NODE_ENV === "production" ? "None" : "Lax",
     maxAge: 1000 * 60 * 60 * 24 * 7, // 7 days
   });

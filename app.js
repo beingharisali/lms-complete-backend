@@ -81,6 +81,7 @@ app.use(
       "https://learning-management-system-one-ruby.vercel.app",
     ],
     credentials: true,
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   })
 );
 app.use(xss());
