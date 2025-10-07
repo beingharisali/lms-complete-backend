@@ -9,7 +9,6 @@ const {
 const multer = require("multer");
 const path = require("path");
 
-// Configure multer for course image uploads
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
     cb(null, "uploads/courses/");
@@ -26,7 +25,7 @@ const storage = multer.diskStorage({
 const upload = multer({
   storage: storage,
   limits: {
-    fileSize: 5 * 1024 * 1024, // 5MB limit
+    fileSize: 5 * 1024 * 1024,
   },
   fileFilter: function (req, file, cb) {
     if (file.mimetype.startsWith("image/")) {
@@ -37,24 +36,19 @@ const upload = multer({
   },
 });
 
-// Multer upload configuration for course image
 const uploadCourseImage = upload.single("courseImage");
 
-// Create a new course (ONLY ADMIN)
 const createCourse = async (req, res) => {
-  // ONLY ADMIN CAN CREATE COURSES
   if (req.user.role !== "admin") {
     throw new UnauthenticatedError("Only admin can create courses");
   }
 
   const courseData = req.body;
 
-  // Validate required fields
   if (!courseData.instructorEmail) {
     throw new BadRequestError("Instructor email is required");
   }
 
-  // Find the instructor by email (must match teacher's email)
   const instructor = await Teacher.findOne({
     email: courseData.instructorEmail,
   });
@@ -65,23 +59,19 @@ const createCourse = async (req, res) => {
     );
   }
 
-  // Check if instructor is active
   if (instructor.status !== "Active") {
     throw new BadRequestError("Cannot assign course to an inactive instructor");
   }
 
-  // Set instructor details automatically from the teacher record
   courseData.instructor = instructor._id;
   courseData.instructorName = `${instructor.firstName} ${instructor.lastName}`;
   courseData.phoneNumber = courseData.phoneNumber || instructor.phone;
   courseData.createdBy = req.user.userId;
 
-  // Handle file upload
   if (req.file) {
     courseData.courseImage = req.file.path;
   }
 
-  // Check if course ID already exists
   const existingCourse = await Course.findOne({
     courseId: courseData.courseId,
   });
@@ -89,7 +79,6 @@ const createCourse = async (req, res) => {
     throw new BadRequestError("Course ID already exists");
   }
 
-  // Validate student numbers
   const enrolled = parseInt(courseData.noOfStudentsEnrolled) || 0;
   const certified = parseInt(courseData.certifiedStudents) || 0;
   const freezed = parseInt(courseData.freezedStudents) || 0;
@@ -106,7 +95,6 @@ const createCourse = async (req, res) => {
     );
   }
 
-  // Validate lecture numbers
   const totalLectures = parseInt(courseData.totalLectures) || 0;
   const delivered = parseInt(courseData.lecturesDelivered) || 0;
 
@@ -116,10 +104,8 @@ const createCourse = async (req, res) => {
     );
   }
 
-  // Create course
   const course = await Course.create(courseData);
 
-  // Populate instructor details
   await course.populate("instructor", "firstName lastName email phone");
 
   res.status(StatusCodes.CREATED).json({
@@ -129,7 +115,6 @@ const createCourse = async (req, res) => {
   });
 };
 
-// Get all courses (Admin sees all, Teacher sees only their own)
 const getAllCourses = async (req, res) => {
   const {
     status,
@@ -142,7 +127,6 @@ const getAllCourses = async (req, res) => {
 
   const queryObject = {};
 
-  // If user is a TEACHER, only show THEIR courses
   if (req.user.role === "teacher") {
     const teacher = await Teacher.findOne({ email: req.user.email });
     if (!teacher) {
@@ -151,12 +135,10 @@ const getAllCourses = async (req, res) => {
     queryObject.instructor = teacher._id;
   }
 
-  // Filter by status
   if (status) {
     queryObject.status = status;
   }
 
-  // Search functionality
   if (search) {
     queryObject.$or = [
       { courseName: { $regex: search, $options: "i" } },
@@ -168,7 +150,6 @@ const getAllCourses = async (req, res) => {
 
   const skip = (page - 1) * limit;
 
-  // Build sort object
   const sort = {};
   sort[sortBy] = sortOrder === "asc" ? 1 : -1;
 
@@ -191,7 +172,6 @@ const getAllCourses = async (req, res) => {
   });
 };
 
-// Get single course
 const getCourse = async (req, res) => {
   const { id } = req.params;
 
@@ -203,7 +183,6 @@ const getCourse = async (req, res) => {
     throw new NotFoundError(`No course found with id: ${id}`);
   }
 
-  // Teachers can ONLY view their own courses
   if (req.user.role === "teacher") {
     const teacher = await Teacher.findOne({ email: req.user.email });
     if (
@@ -220,24 +199,20 @@ const getCourse = async (req, res) => {
   });
 };
 
-// Update course (ONLY ADMIN)
 const updateCourse = async (req, res) => {
   const { id } = req.params;
 
-  // ONLY ADMIN CAN UPDATE
   if (req.user.role !== "admin") {
     throw new UnauthenticatedError("Only admin can update courses");
   }
 
   const updateData = { ...req.body };
 
-  // Check if course exists
   const existingCourse = await Course.findById(id);
   if (!existingCourse) {
     throw new NotFoundError(`No course found with id: ${id}`);
   }
 
-  // If instructor email is being updated, verify the instructor exists
   if (updateData.instructorEmail) {
     const instructor = await Teacher.findOne({
       email: updateData.instructorEmail,
@@ -259,12 +234,10 @@ const updateCourse = async (req, res) => {
     updateData.instructorName = `${instructor.firstName} ${instructor.lastName}`;
   }
 
-  // Handle file upload
   if (req.file) {
     updateData.courseImage = req.file.path;
   }
 
-  // Validate student numbers if being updated
   if (updateData.noOfStudentsEnrolled !== undefined) {
     const enrolled = parseInt(updateData.noOfStudentsEnrolled);
     const certified = parseInt(
@@ -291,7 +264,6 @@ const updateCourse = async (req, res) => {
     }
   }
 
-  // Validate lecture numbers if being updated
   if (updateData.totalLectures !== undefined) {
     const totalLectures = parseInt(updateData.totalLectures);
     const delivered = parseInt(
@@ -325,9 +297,7 @@ const updateCourse = async (req, res) => {
   });
 };
 
-// Delete course (ONLY ADMIN)
 const deleteCourse = async (req, res) => {
-  // ONLY ADMIN CAN DELETE
   if (req.user.role !== "admin") {
     throw new UnauthenticatedError("Only admin can delete courses");
   }
@@ -347,9 +317,7 @@ const deleteCourse = async (req, res) => {
   });
 };
 
-// Get course statistics (ONLY ADMIN)
 const getCourseStats = async (req, res) => {
-  // ONLY ADMIN
   if (req.user.role !== "admin") {
     throw new UnauthenticatedError("Only admin can view statistics");
   }
@@ -360,7 +328,6 @@ const getCourseStats = async (req, res) => {
   const upcomingCourses = await Course.countDocuments({ status: "Upcoming" });
   const inactiveCourses = await Course.countDocuments({ status: "Inactive" });
 
-  // Total students across all courses
   const studentStats = await Course.aggregate([
     {
       $group: {
@@ -372,7 +339,6 @@ const getCourseStats = async (req, res) => {
     },
   ]);
 
-  // Instructor-wise course count
   const instructorStats = await Course.aggregate([
     {
       $group: {
@@ -386,7 +352,6 @@ const getCourseStats = async (req, res) => {
     { $sort: { courseCount: -1 } },
   ]);
 
-  // Lecture progress statistics
   const lectureStats = await Course.aggregate([
     {
       $group: {
@@ -436,9 +401,7 @@ const getCourseStats = async (req, res) => {
   });
 };
 
-// Get teacher's own courses (ONLY TEACHER)
 const getMyCoursesAsTeacher = async (req, res) => {
-  // ONLY TEACHERS can access this
   if (req.user.role !== "teacher") {
     throw new UnauthenticatedError("Only teachers can access this endpoint");
   }
@@ -452,7 +415,6 @@ const getMyCoursesAsTeacher = async (req, res) => {
     .sort({ createdAt: -1 })
     .populate("createdBy", "name email");
 
-  // Calculate teacher's statistics
   const stats = {
     totalCourses: courses.length,
     activeCourses: courses.filter((c) => c.status === "Active").length,

@@ -13,25 +13,18 @@ const {
   uploadCourseImage,
 } = require("../controllers/courses");
 
-// All routes require authentication
 router.use(authenticateUser);
 
-// Statistics route (ADMIN ONLY)
 router.route("/stats").get(getCourseStats);
 
-// Teacher's own courses (TEACHER ONLY)
 router.route("/my-courses").get(getMyCoursesAsTeacher);
 
-// Main CRUD routes
-router
-  .route("/")
-  .get(getAllCourses) // Admin sees all, Teacher sees only their own
-  .post(uploadCourseImage, createCourse); // ADMIN ONLY
+router.route("/").get(getAllCourses).post(uploadCourseImage, createCourse);
 
 router
   .route("/:id")
-  .get(getCourse) // Admin sees any, Teacher sees only their own
-  .patch(uploadCourseImage, updateCourse) // ADMIN ONLY
-  .delete(deleteCourse); // ADMIN ONLY
+  .get(getCourse)
+  .patch(uploadCourseImage, updateCourse)
+  .delete(deleteCourse);
 
 module.exports = router;
