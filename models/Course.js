@@ -2,13 +2,11 @@ const mongoose = require("mongoose");
 
 const CourseSchema = new mongoose.Schema(
   {
-    // Course Image
     courseImage: {
       type: String,
       default: null,
     },
 
-    // Basic Course Information
     courseId: {
       type: String,
       required: [true, "Please provide course ID"],
@@ -28,7 +26,6 @@ const CourseSchema = new mongoose.Schema(
       trim: true,
     },
 
-    // Student Information
     noOfStudentsEnrolled: {
       type: Number,
       default: 0,
@@ -45,7 +42,6 @@ const CourseSchema = new mongoose.Schema(
       min: 0,
     },
 
-    // Lecture Information
     totalLectures: {
       type: Number,
       required: [true, "Please provide total number of lectures"],
@@ -57,7 +53,6 @@ const CourseSchema = new mongoose.Schema(
       min: 0,
     },
 
-    // Instructor Information (Reference to Teacher)
     instructor: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Teacher",
@@ -81,21 +76,18 @@ const CourseSchema = new mongoose.Schema(
       match: [/^[0-9+\-\s\(\)]{10,15}$/, "Please provide a valid phone number"],
     },
 
-    // Course Description
     description: {
       type: String,
       required: [true, "Please provide course description"],
       maxlength: 1000,
     },
 
-    // Status
     status: {
       type: String,
       enum: ["Active", "Inactive", "Completed", "Upcoming"],
       default: "Active",
     },
 
-    // Track who created this course (admin user ID)
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
@@ -107,18 +99,15 @@ const CourseSchema = new mongoose.Schema(
   }
 );
 
-// Index for faster searches
 CourseSchema.index({ courseName: 1 });
 CourseSchema.index({ instructor: 1 });
 CourseSchema.index({ status: 1 });
 
-// Virtual for lecture progress percentage
 CourseSchema.virtual("lectureProgress").get(function () {
   if (this.totalLectures === 0) return 0;
   return ((this.lecturesDelivered / this.totalLectures) * 100).toFixed(2);
 });
 
-// Virtual for certification rate
 CourseSchema.virtual("certificationRate").get(function () {
   if (this.noOfStudentsEnrolled === 0) return 0;
   return ((this.certifiedStudents / this.noOfStudentsEnrolled) * 100).toFixed(
@@ -126,7 +115,6 @@ CourseSchema.virtual("certificationRate").get(function () {
   );
 });
 
-// Ensure virtual fields are serialized
 CourseSchema.set("toJSON", {
   virtuals: true,
 });
