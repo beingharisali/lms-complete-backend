@@ -191,32 +191,30 @@ const getStudentById = async (req, res) => {
 
 
 
-// controllers/studentController.js (replace your updateStudent with this)
+// controllers/studentController.js 
+
+
 const updateStudent = async (req, res) => {
   try {
-    // 1) Get id from params (this is the correct place)
     const { id } = req.params;
 
-    // 2) Get body. If multipart/form-data was used, some nested fields might be strings;
-    //    handle both plain JSON and stringified nested JSON.
+    
     const body = req.body || {};
     const safeParse = (v) => {
       if (!v) return undefined;
       try { return typeof v === "string" ? JSON.parse(v) : v; } catch { return v; }
     };
 
-    // Example: if frontend sent courses as JSON string in FormData -> parse it
     const courses = safeParse(body.courses) || {};
     const parentGuardian = safeParse(body.parentGuardian) || {};
     const emergencyContact = safeParse(body.emergencyContact) || {};
 
-    // 3) Map incoming fields to schema fields (IMPORTANT: change these mappings
-    //    if your schema uses different field names)
+  
     const updateData = {};
 
     if (body.name !== undefined) updateData.fullName = body.name;           // name -> fullName
     if (body.studentId !== undefined) updateData.studentId = body.studentId;
-    if (body.fullName !== undefined) updateData.fullName = body.fullName;  // if front already sends fullName
+    if (body.fullName !== undefined) updateData.fullName = body.fullName;  
     if (body.dateOfBirth !== undefined) updateData.dateOfBirth = body.dateOfBirth;
     if (body.gender !== undefined) updateData.gender = body.gender;
     if (body.phone !== undefined) updateData.phone = body.phone;
@@ -238,8 +236,6 @@ const updateStudent = async (req, res) => {
       };
     }
 
-    // If frontend sent `course` or `totalFees` as top-level (your terminal shows that),
-    // map them into courses
     if (body.course !== undefined) {
       updateData.courses = updateData.courses || {};
       updateData.courses.selectedCourse = body.course;
@@ -295,7 +291,6 @@ const updateStudent = async (req, res) => {
 
     console.log("✅ Mapped updateData (before DB):", updateData);
 
-    // 5) Update DB using req.params.id and $set. Also run validators to catch schema mis-match.
     const updatedStudent = await Student.findByIdAndUpdate(
       id,
       { $set: updateData },
@@ -313,7 +308,6 @@ const updateStudent = async (req, res) => {
     return res.status(500).json({ success: false, message: error.message });
   }
 };
-
 
 
 
