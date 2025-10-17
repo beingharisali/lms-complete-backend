@@ -96,86 +96,227 @@ const getStudentById = async (req, res) => {
 };
 
 // ✅ Update Student
+// const updateStudent = async (req, res) => {
+//   try {
+//     // const bodyString = JSON.stringify(req.body);
+//     // const convertedBody = qs.parse(JSON.parse(bodyString));
+//  const convertedBody = req.body;
+//     // console.log("✅ Body (Update):", convertedBody);
+//     console.log("✅ Converted Body (Update):", convertedBody);
+
+//     const updateData = {
+//       studentId: convertedBody.studentId,
+//       fullName: convertedBody.fullName,
+//       dateOfBirth: convertedBody.dateOfBirth,
+//       gender: convertedBody.gender,
+//       phone: convertedBody.phone,
+//       email: convertedBody.email,
+//       cnicBForm: convertedBody.cnicBForm,
+//       address: convertedBody.address,
+//       csr: convertedBody.csr,
+//       parentGuardian: {
+//         name: convertedBody.parentGuardian?.name,
+//         phone: convertedBody.parentGuardian?.phone,
+//       },
+//       courses: {
+//         selectedCourse: convertedBody.courses?.selectedCourse,
+//         batch: convertedBody.courses?.batch,
+//         totalFees: convertedBody.courses?.totalFees,
+//         downPayment: convertedBody.courses?.downPayment,
+//         numberOfInstallments: convertedBody.courses?.numberOfInstallments,
+//         feePerInstallment: convertedBody.courses?.feePerInstallment,
+//         amountPaid: convertedBody.courses?.amountPaid,
+//       },
+//       emergencyContact: {
+//         name: convertedBody.emergencyContact?.name,
+//         relationship: convertedBody.emergencyContact?.relationship,
+//         phoneNumber: convertedBody.emergencyContact?.phoneNumber,
+//       },
+//     };
+
+//     // ✅ If password is provided, rehash it
+//     if (convertedBody.password) {
+//       updateData.password = await bcrypt.hash(convertedBody.password, 10);
+//     }
+
+//     // ✅ Handle file updates
+//     if (req.files) {
+//       if (req.files.photo)
+//         updateData.photo = req.files.photo[0].path.replace(/\\/g, "/");
+//       if (req.files.studentCnicBForm)
+//         updateData.studentCnicBForm =
+//           req.files.studentCnicBForm[0].path.replace(/\\/g, "/");
+//       if (req.files.parentCnic)
+//         updateData.parentCnic = req.files.parentCnic[0].path.replace(/\\/g, "/");
+//       if (req.files.medicalRecords)
+//         updateData.medicalRecords =
+//           req.files.medicalRecords[0].path.replace(/\\/g, "/");
+//       if (req.files.additionalDocuments)
+//         updateData.additionalDocuments =
+//           req.files.additionalDocuments[0].path.replace(/\\/g, "/");
+//     }
+
+//     // const updatedStudent = await Student.findByIdAndUpdate(
+//     //   req.params.id,
+//     //   updateData,
+//     //   { new: true }
+//     // );  //////////////////////////
+       
+// const updatedStudent = await Student.findByIdAndUpdate(
+//   req.params.id,
+//   { $set: updateData },
+//   { new: true }
+// );
+
+// // const { id } = req.params;
+// // const updatedStudent = await Student.findByIdAndUpdate(id, req.body, { new: true });
+
+
+//     if (!updatedStudent)
+//       return res
+//         .status(404)
+//         .json({ success: false, message: "Student not found" });
+
+//     res.json({
+//       success: true,
+//       message: "Student updated successfully",
+//       student: updatedStudent,
+//     });
+//   } catch (error) {
+//     console.error("❌ Error updating student:", error);
+//     res.status(500).json({ success: false, message: error.message });
+//   }
+// };
+
+
+
+
+// controllers/studentController.js (replace your updateStudent with this)
 const updateStudent = async (req, res) => {
   try {
-    const bodyString = JSON.stringify(req.body);
-    const convertedBody = qs.parse(JSON.parse(bodyString));
+    // 1) Get id from params (this is the correct place)
+    const { id } = req.params;
 
-    console.log("✅ Converted Body (Update):", convertedBody);
-
-    const updateData = {
-      studentId: convertedBody.studentId,
-      fullName: convertedBody.fullName,
-      dateOfBirth: convertedBody.dateOfBirth,
-      gender: convertedBody.gender,
-      phone: convertedBody.phone,
-      email: convertedBody.email,
-      cnicBForm: convertedBody.cnicBForm,
-      address: convertedBody.address,
-      csr: convertedBody.csr,
-      parentGuardian: {
-        name: convertedBody.parentGuardian?.name,
-        phone: convertedBody.parentGuardian?.phone,
-      },
-      courses: {
-        selectedCourse: convertedBody.courses?.selectedCourse,
-        batch: convertedBody.courses?.batch,
-        totalFees: convertedBody.courses?.totalFees,
-        downPayment: convertedBody.courses?.downPayment,
-        numberOfInstallments: convertedBody.courses?.numberOfInstallments,
-        feePerInstallment: convertedBody.courses?.feePerInstallment,
-        amountPaid: convertedBody.courses?.amountPaid,
-      },
-      emergencyContact: {
-        name: convertedBody.emergencyContact?.name,
-        relationship: convertedBody.emergencyContact?.relationship,
-        phoneNumber: convertedBody.emergencyContact?.phoneNumber,
-      },
+    // 2) Get body. If multipart/form-data was used, some nested fields might be strings;
+    //    handle both plain JSON and stringified nested JSON.
+    const body = req.body || {};
+    const safeParse = (v) => {
+      if (!v) return undefined;
+      try { return typeof v === "string" ? JSON.parse(v) : v; } catch { return v; }
     };
 
-    // ✅ If password is provided, rehash it
-    if (convertedBody.password) {
-      updateData.password = await bcrypt.hash(convertedBody.password, 10);
+    // Example: if frontend sent courses as JSON string in FormData -> parse it
+    const courses = safeParse(body.courses) || {};
+    const parentGuardian = safeParse(body.parentGuardian) || {};
+    const emergencyContact = safeParse(body.emergencyContact) || {};
+
+    // 3) Map incoming fields to schema fields (IMPORTANT: change these mappings
+    //    if your schema uses different field names)
+    const updateData = {};
+
+    if (body.name !== undefined) updateData.fullName = body.name;           // name -> fullName
+    if (body.studentId !== undefined) updateData.studentId = body.studentId;
+    if (body.fullName !== undefined) updateData.fullName = body.fullName;  // if front already sends fullName
+    if (body.dateOfBirth !== undefined) updateData.dateOfBirth = body.dateOfBirth;
+    if (body.gender !== undefined) updateData.gender = body.gender;
+    if (body.phone !== undefined) updateData.phone = body.phone;
+    if (body.email !== undefined) updateData.email = body.email;
+    if (body.cnicBForm !== undefined) updateData.cnicBForm = body.cnicBForm;
+    if (body.address !== undefined) updateData.address = body.address;
+    if (body.csr !== undefined) updateData.csr = body.csr;
+
+    // courses sub-object mapping (map keys from frontend to your schema)
+    if (Object.keys(courses).length > 0) {
+      updateData.courses = {
+        ...(courses.selectedCourse !== undefined && { selectedCourse: courses.selectedCourse }),
+        ...(courses.batch !== undefined && { batch: courses.batch }),
+        ...(courses.totalFees !== undefined && { totalFees: courses.totalFees }),
+        ...(courses.downPayment !== undefined && { downPayment: courses.downPayment }),
+        ...(courses.numberOfInstallments !== undefined && { numberOfInstallments: courses.numberOfInstallments }),
+        ...(courses.feePerInstallment !== undefined && { feePerInstallment: courses.feePerInstallment }),
+        ...(courses.amountPaid !== undefined && { amountPaid: courses.amountPaid }),
+      };
     }
 
-    // ✅ Handle file updates
+    // If frontend sent `course` or `totalFees` as top-level (your terminal shows that),
+    // map them into courses
+    if (body.course !== undefined) {
+      updateData.courses = updateData.courses || {};
+      updateData.courses.selectedCourse = body.course;
+    }
+    if (body.totalFees !== undefined) {
+      updateData.courses = updateData.courses || {};
+      updateData.courses.totalFees = body.totalFees;
+    }
+    if (body.feePaid !== undefined) {
+      updateData.courses = updateData.courses || {};
+      // you may want to store this as amountPaid depending on schema
+      updateData.courses.amountPaid = body.feePaid;
+    }
+    if (body.installments !== undefined) {
+      updateData.courses = updateData.courses || {};
+      updateData.courses.numberOfInstallments = body.installments;
+    }
+    if (body.perInstallment !== undefined) {
+      updateData.courses = updateData.courses || {};
+      updateData.courses.feePerInstallment = body.perInstallment;
+    }
+
+    // parentGuardian mapping
+    if (Object.keys(parentGuardian).length > 0) {
+      updateData.parentGuardian = {
+        ...(parentGuardian.name !== undefined && { name: parentGuardian.name }),
+        ...(parentGuardian.phone !== undefined && { phone: parentGuardian.phone }),
+      };
+    }
+    // emergencyContact mapping
+    if (Object.keys(emergencyContact).length > 0) {
+      updateData.emergencyContact = {
+        ...(emergencyContact.name !== undefined && { name: emergencyContact.name }),
+        ...(emergencyContact.relationship !== undefined && { relationship: emergencyContact.relationship }),
+        ...(emergencyContact.phoneNumber !== undefined && { phoneNumber: emergencyContact.phoneNumber }),
+      };
+    }
+
+    // password handling
+    if (body.password) {
+      const bcrypt = require("bcryptjs");
+      updateData.password = await bcrypt.hash(body.password, 10);
+    }
+
+    // 4) Handle file uploads (if any)
     if (req.files) {
-      if (req.files.photo)
-        updateData.photo = req.files.photo[0].path.replace(/\\/g, "/");
-      if (req.files.studentCnicBForm)
-        updateData.studentCnicBForm =
-          req.files.studentCnicBForm[0].path.replace(/\\/g, "/");
-      if (req.files.parentCnic)
-        updateData.parentCnic = req.files.parentCnic[0].path.replace(/\\/g, "/");
-      if (req.files.medicalRecords)
-        updateData.medicalRecords =
-          req.files.medicalRecords[0].path.replace(/\\/g, "/");
-      if (req.files.additionalDocuments)
-        updateData.additionalDocuments =
-          req.files.additionalDocuments[0].path.replace(/\\/g, "/");
+      if (req.files.photo) updateData.photo = req.files.photo[0].path.replace(/\\/g, "/");
+      if (req.files.studentCnicBForm) updateData.studentCnicBForm = req.files.studentCnicBForm[0].path.replace(/\\/g, "/");
+      if (req.files.parentCnic) updateData.parentCnic = req.files.parentCnic[0].path.replace(/\\/g, "/");
+      if (req.files.medicalRecords) updateData.medicalRecords = req.files.medicalRecords[0].path.replace(/\\/g, "/");
+      if (req.files.additionalDocuments) updateData.additionalDocuments = req.files.additionalDocuments[0].path.replace(/\\/g, "/");
     }
 
+    console.log("✅ Mapped updateData (before DB):", updateData);
+
+    // 5) Update DB using req.params.id and $set. Also run validators to catch schema mis-match.
     const updatedStudent = await Student.findByIdAndUpdate(
-      req.params.id,
-      updateData,
-      { new: true }
+      id,
+      { $set: updateData },
+      { new: true, runValidators: true }
     );
 
-    if (!updatedStudent)
-      return res
-        .status(404)
-        .json({ success: false, message: "Student not found" });
+    if (!updatedStudent) {
+      return res.status(404).json({ success: false, message: "Student not found" });
+    }
 
-    res.json({
-      success: true,
-      message: "Student updated successfully",
-      student: updatedStudent,
-    });
+    console.log("✅ Updated student returned by Mongoose:", updatedStudent);
+    return res.json({ success: true, message: "Student updated successfully", student: updatedStudent });
   } catch (error) {
     console.error("❌ Error updating student:", error);
-    res.status(500).json({ success: false, message: error.message });
+    return res.status(500).json({ success: false, message: error.message });
   }
 };
+
+
+
+
 
 // ✅ Delete Student
 const deleteStudent = async (req, res) => {
