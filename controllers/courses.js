@@ -8,6 +8,10 @@ const {
 } = require("../errors");
 const multer = require("multer");
 const path = require("path");
+const fs = require("fs");
+
+// Ensure upload directory exists
+fs.mkdirSync("uploads/courses", { recursive: true });
 
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
@@ -31,19 +35,29 @@ const upload = multer({
     if (file.mimetype.startsWith("image/")) {
       cb(null, true);
     } else {
-      cb(new Error("Only image files are allowed for course image"), false);
+      cb(new BadRequestError("Only image files are allowed for course image"), false);
     }
   },
 });
 
 const uploadCourseImage = upload.single("courseImage");
 
+// Utility to sanitize empty object values (like photo: {})
+const sanitizeBody = (body) => {
+  for (let key in body) {
+    if (typeof body[key] === "object" && Object.keys(body[key]).length === 0) {
+      delete body[key];
+    }
+  }
+  return body;
+};
+
 const createCourse = async (req, res) => {
   if (req.user.role !== "admin") {
     throw new UnauthenticatedError("Only admin can create courses");
   }
 
-  const courseData = req.body;
+  let courseData = sanitizeBody(req.body);
 
   if (!courseData.instructorEmail) {
     throw new BadRequestError("Instructor email is required");
@@ -206,11 +220,18 @@ const updateCourse = async (req, res) => {
     throw new UnauthenticatedError("Only admin can update courses");
   }
 
-  const updateData = { ...req.body };
+  const updateData = sanitizeBody({ ...req.body });
 
   const existingCourse = await Course.findById(id);
   if (!existingCourse) {
     throw new NotFoundError(`No course found with id: ${id}`);
+  }
+
+  if (updateData.courseId && updateData.courseId !== existingCourse.courseId) {
+    const duplicate = await Course.findOne({ courseId: updateData.courseId });
+    if (duplicate) {
+      throw new BadRequestError("Course ID already exists");
+    }
   }
 
   if (updateData.instructorEmail) {
@@ -232,51 +253,52 @@ const updateCourse = async (req, res) => {
 
     updateData.instructor = instructor._id;
     updateData.instructorName = `${instructor.firstName} ${instructor.lastName}`;
+    if (!updateData.phoneNumber) {
+      updateData.phoneNumber = instructor.phone;
+    }
   }
 
   if (req.file) {
     updateData.courseImage = req.file.path;
   }
 
-  if (updateData.noOfStudentsEnrolled !== undefined) {
-    const enrolled = parseInt(updateData.noOfStudentsEnrolled);
-    const certified = parseInt(
-      updateData.certifiedStudents !== undefined
-        ? updateData.certifiedStudents
-        : existingCourse.certifiedStudents
-    );
-    const freezed = parseInt(
-      updateData.freezedStudents !== undefined
-        ? updateData.freezedStudents
-        : existingCourse.freezedStudents
-    );
+  // Compute new values for validation
+  const newEnrolled = updateData.noOfStudentsEnrolled !== undefined 
+    ? parseInt(updateData.noOfStudentsEnrolled) 
+    : existingCourse.noOfStudentsEnrolled;
 
-    if (certified > enrolled) {
-      throw new BadRequestError(
-        "Certified students cannot exceed enrolled students"
-      );
-    }
+  const newCertified = updateData.certifiedStudents !== undefined 
+    ? parseInt(updateData.certifiedStudents) 
+    : existingCourse.certifiedStudents;
 
-    if (freezed > enrolled) {
-      throw new BadRequestError(
-        "Freezed students cannot exceed enrolled students"
-      );
-    }
+  const newFreezed = updateData.freezedStudents !== undefined 
+    ? parseInt(updateData.freezedStudents) 
+    : existingCourse.freezedStudents;
+
+  if (newCertified > newEnrolled) {
+    throw new BadRequestError(
+      "Certified students cannot exceed enrolled students"
+    );
   }
 
-  if (updateData.totalLectures !== undefined) {
-    const totalLectures = parseInt(updateData.totalLectures);
-    const delivered = parseInt(
-      updateData.lecturesDelivered !== undefined
-        ? updateData.lecturesDelivered
-        : existingCourse.lecturesDelivered
+  if (newFreezed > newEnrolled) {
+    throw new BadRequestError(
+      "Freezed students cannot exceed enrolled students"
     );
+  }
 
-    if (delivered > totalLectures) {
-      throw new BadRequestError(
-        "Lectures delivered cannot exceed total lectures"
-      );
-    }
+  const newTotalLectures = updateData.totalLectures !== undefined 
+    ? parseInt(updateData.totalLectures) 
+    : existingCourse.totalLectures;
+
+  const newDelivered = updateData.lecturesDelivered !== undefined 
+    ? parseInt(updateData.lecturesDelivered) 
+    : existingCourse.lecturesDelivered;
+
+  if (newDelivered > newTotalLectures) {
+    throw new BadRequestError(
+      "Lectures delivered cannot exceed total lectures"
+    );
   }
 
   const course = await Course.findByIdAndUpdate(
