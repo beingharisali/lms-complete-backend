@@ -14,6 +14,11 @@ const CourseSchema = new mongoose.Schema({
   feePerInstallment: { type: Number, default: 0 },
   amountPaid: { type: Number, default: 0 },
   enrolledDate: { type: Date, default: Date.now },
+   SubmitFee: {
+      type: String,
+      enum: ["Jazz Cash", "Cash"],
+      required: true,
+   }
 });
 
 const EmergencyContactSchema = new mongoose.Schema({
