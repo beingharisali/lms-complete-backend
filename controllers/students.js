@@ -328,10 +328,18 @@ const deleteStudent = async (req, res) => {
   }
 };
 
+
+const getAllStudents = async () => {
+  const res = await fetch("/api/students"); // or your endpoint
+  const data = await res.json();
+  setStudents(data);
+};
+
 module.exports = {
   createStudent,
   getStudents,
   getStudentById,
   updateStudent,
   deleteStudent,
+  getAllStudents,
 };
