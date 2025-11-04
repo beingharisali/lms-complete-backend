@@ -20,6 +20,7 @@ const createStudent = async (req, res) => {
       cnicBForm: convertedBody.cnicBForm,
       address: convertedBody.address,
       csr: convertedBody.csr,
+      
       password: await bcrypt.hash(convertedBody.password, 10),
 
       parentGuardian: {
@@ -34,6 +35,7 @@ const createStudent = async (req, res) => {
         numberOfInstallments: convertedBody.courses?.numberOfInstallments,
         feePerInstallment: convertedBody.courses?.feePerInstallment,
         amountPaid: convertedBody.courses?.amountPaid,
+        SubmitFee: convertedBody.courses?.SubmitFee,
       },
       emergencyContact: {
         name: convertedBody.emergencyContact?.name,
@@ -233,6 +235,7 @@ const updateStudent = async (req, res) => {
         ...(courses.numberOfInstallments !== undefined && { numberOfInstallments: courses.numberOfInstallments }),
         ...(courses.feePerInstallment !== undefined && { feePerInstallment: courses.feePerInstallment }),
         ...(courses.amountPaid !== undefined && { amountPaid: courses.amountPaid }),
+        ...(courses.SubmitFee !== undefined && { SubmitFee: courses.SubmitFee }),
       };
     }
 
