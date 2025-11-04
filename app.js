@@ -91,6 +91,13 @@ app.get("/", (req, res) => {
   res.send('<h1>LMS API</h1><a href="/api-docs">Documentation</a>');
 });
 
+
+
+
+
+
+
+
 // routes
 app.use("/api/v1/auth", authRouter);
 app.use("/api/v1/students", studentsRouter);
