@@ -17,8 +17,9 @@ const CourseSchema = new mongoose.Schema({
    SubmitFee: {
       type: String,
       enum: ["Jazz Cash", "Cash"],
-      required: true,
+      // required: true,
    }
+   
 });
 
 const EmergencyContactSchema = new mongoose.Schema({
