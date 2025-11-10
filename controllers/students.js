@@ -36,6 +36,8 @@ const createStudent = async (req, res) => {
         feePerInstallment: convertedBody.courses?.feePerInstallment,
         amountPaid: convertedBody.courses?.amountPaid,
         SubmitFee: convertedBody.courses?.SubmitFee,
+        customPaymentMethod: convertedBody.courses?.customPaymentMethod, // ✅ new line
+
       },
       emergencyContact: {
         name: convertedBody.emergencyContact?.name,
@@ -236,6 +238,8 @@ const updateStudent = async (req, res) => {
         ...(courses.feePerInstallment !== undefined && { feePerInstallment: courses.feePerInstallment }),
         ...(courses.amountPaid !== undefined && { amountPaid: courses.amountPaid }),
         ...(courses.SubmitFee !== undefined && { SubmitFee: courses.SubmitFee }),
+        ...(courses.customPaymentMethod !== undefined && { customPaymentMethod: courses.customPaymentMethod }), // ✅ added
+
       };
     }
 
