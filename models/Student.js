@@ -1,15 +1,15 @@
 const mongoose = require("mongoose");
 
-const ParentGuardianSchema = new mongoose.Schema({
-  name: { type: String, required: true },
-  phone: { type: String, required: true },
-});
+// const ParentGuardianSchema = new mongoose.Schema({
+//   name: { type: String, required: true },
+//   phone: { type: String, required: true },
+// });
 
 const CourseSchema = new mongoose.Schema({
   selectedCourse: { type: String, required: true },
-  batch: { type: String },
+  // batch: { type: String },
   totalFees: { type: Number, required: true },
-  downPayment: { type: Number, default: 0 },
+  // downPayment: { type: Number, default: 0 },
   numberOfInstallments: { type: Number, default: 1 },
   feePerInstallment: { type: Number, default: 0 },
   amountPaid: { type: Number, default: 0 },
@@ -23,11 +23,11 @@ const CourseSchema = new mongoose.Schema({
    customPaymentMethod: { type: String },
 });
 
-const EmergencyContactSchema = new mongoose.Schema({
-  name: { type: String, required: true },
-  relationship: { type: String, required: true },
-  phoneNumber: { type: String, required: true },
-});
+// const EmergencyContactSchema = new mongoose.Schema({
+//   name: { type: String, required: true },
+//   relationship: { type: String, required: true },
+//   phoneNumber: { type: String, required: true },
+// });
 
 const StudentSchema = new mongoose.Schema(
   {
@@ -47,16 +47,16 @@ const StudentSchema = new mongoose.Schema(
       required: false,
     },
 
-    parentGuardian: ParentGuardianSchema,
+    // parentGuardian: ParentGuardianSchema,
     courses: CourseSchema,
-    emergencyContact: EmergencyContactSchema,
+    // emergencyContact: EmergencyContactSchema,
 
     // Files
-    photo: { type: String },
-    studentCnicBForm: { type: String },
-    parentCnic: { type: String },
-    medicalRecords: { type: String },
-    additionalDocuments: { type: String },
+    // photo: { type: String },
+    // studentCnicBForm: { type: String },
+    // parentCnic: { type: String },
+    // medicalRecords: { type: String },
+    // additionalDocuments: { type: String },
   },
   { timestamps: true }
 );
