@@ -7,6 +7,7 @@ const mongoose = require("mongoose");
 
 const CourseSchema = new mongoose.Schema({
   selectedCourse: { type: String, required: true },
+  csr: { type: String, required: false },
   // batch: { type: String },
   totalFees: { type: Number, required: true },
   // downPayment: { type: Number, default: 0 },
@@ -20,7 +21,7 @@ const CourseSchema = new mongoose.Schema({
   //     // required: true,
   //  },
   SubmitFee: { type: String, required: true },
-   customPaymentMethod: { type: String },
+  customPaymentMethod: { type: String },
 });
 
 // const EmergencyContactSchema = new mongoose.Schema({
@@ -42,10 +43,6 @@ const StudentSchema = new mongoose.Schema(
     address: { type: String, required: true },
 
     // ✅ New CSR field (reference or text)
-    csr: {
-      type: String, // you can make this ObjectId if linking to User model
-      required: false,
-    },
 
     // parentGuardian: ParentGuardianSchema,
     courses: CourseSchema,
@@ -62,9 +59,6 @@ const StudentSchema = new mongoose.Schema(
 );
 
 module.exports = mongoose.model("Student", StudentSchema);
-
-
-
 
 // const mongoose = require("mongoose");
 // const bcrypt = require("bcryptjs");
