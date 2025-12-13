@@ -7,7 +7,7 @@ const mongoose = require("mongoose");
 
 const CourseSchema = new mongoose.Schema({
   selectedCourse: { type: String, required: true },
-  csr: { type: String, required: false },
+    csr: { type: String, required: true },
   // batch: { type: String },
   totalFees: { type: Number, required: true },
   // downPayment: { type: Number, default: 0 },
@@ -41,8 +41,6 @@ const StudentSchema = new mongoose.Schema(
     password: { type: String, required: true },
     cnicBForm: { type: String, required: true },
     address: { type: String, required: true },
-
-    // ✅ New CSR field (reference or text)
 
     // parentGuardian: ParentGuardianSchema,
     courses: CourseSchema,
