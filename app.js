@@ -71,9 +71,6 @@ app.use(
 // Serve static files (uploaded files)
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
-app.use(express.json());
-app.use(cookieParser());
-app.use(helmet());
 app.use(
   cors({
     origin: [
@@ -84,19 +81,16 @@ app.use(
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   })
 );
+
+app.use(express.json());
+app.use(cookieParser());
+app.use(helmet());
 app.use(xss());
 
 // Test route
 app.get("/", (req, res) => {
   res.send('<h1>LMS API</h1><a href="/api-docs">Documentation</a>');
 });
-
-
-
-
-
-
-
 
 // routes
 app.use("/api/v1/auth", authRouter);
