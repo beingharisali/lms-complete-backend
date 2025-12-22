@@ -201,147 +201,98 @@ const getStudentById = async (req, res) => {
 const updateStudent = async (req, res) => {
   try {
     const { id } = req.params;
-
     const body = req.body || {};
-    const safeParse = (v) => {
-      if (!v) return undefined;
-      try {
-        return typeof v === "string" ? JSON.parse(v) : v;
-      } catch {
-        return v;
-      }
-    };
 
-    const courses = safeParse(body.courses) || {};
-    const parentGuardian = safeParse(body.parentGuardian) || {};
-    const emergencyContact = safeParse(body.emergencyContact) || {};
+    console.log("📥 Received PATCH data:", body);
 
     const updateData = {};
 
+    // Map frontend field names to schema field names
+    // Basic information mapping
     if (body.name !== undefined) updateData.fullName = body.name; // name -> fullName
-    if (body.studentId !== undefined) updateData.studentId = body.studentId;
-    if (body.fullName !== undefined) updateData.fullName = body.fullName;
-    if (body.dateOfBirth !== undefined)
-      updateData.dateOfBirth = body.dateOfBirth;
-    if (body.gender !== undefined) updateData.gender = body.gender;
-    if (body.phone !== undefined) updateData.phone = body.phone;
-    if (body.email !== undefined) updateData.email = body.email;
-    if (body.cnicBForm !== undefined) updateData.cnicBForm = body.cnicBForm;
-    if (body.address !== undefined) updateData.address = body.address;
-    if (body.csr !== undefined) updateData.csr = body.csr;
+    if (body.contact !== undefined) updateData.phone = body.contact; // contact -> phone
 
-    // courses sub-object mapping (map keys from frontend to your schema)
-    if (Object.keys(courses).length > 0) {
-      updateData.courses = {
-        ...(courses.selectedCourse !== undefined && {
-          selectedCourse: courses.selectedCourse,
-        }),
-        ...(courses.batch !== undefined && { batch: courses.batch }),
-        ...(courses.totalFees !== undefined && {
-          totalFees: courses.totalFees,
-        }),
-        ...(courses.downPayment !== undefined && {
-          downPayment: courses.downPayment,
-        }),
-        ...(courses.numberOfInstallments !== undefined && {
-          numberOfInstallments: courses.numberOfInstallments,
-        }),
-        ...(courses.feePerInstallment !== undefined && {
-          feePerInstallment: courses.feePerInstallment,
-        }),
-        ...(courses.amountPaid !== undefined && {
-          amountPaid: courses.amountPaid,
-        }),
-        ...(courses.SubmitFee !== undefined && {
-          SubmitFee: courses.SubmitFee,
-        }),
-        ...(courses.customPaymentMethod !== undefined && {
-          customPaymentMethod: courses.customPaymentMethod,
-        }), // ✅ added
-      };
+    // CSR - needs to go inside courses object
+    if (body.csr !== undefined) {
+      updateData.courses = updateData.courses || {};
+      updateData.courses.csr = body.csr;
     }
+
+    // Course-related fields - they all go inside courses object
+    const courseUpdates = {};
+    let hasCourseUpdates = false;
 
     if (body.course !== undefined) {
-      updateData.courses = updateData.courses || {};
-      updateData.courses.selectedCourse = body.course;
+      courseUpdates.selectedCourse = body.course;
+      hasCourseUpdates = true;
     }
     if (body.totalFees !== undefined) {
-      updateData.courses = updateData.courses || {};
-      updateData.courses.totalFees = body.totalFees;
+      courseUpdates.totalFees = body.totalFees;
+      hasCourseUpdates = true;
     }
     if (body.feePaid !== undefined) {
-      updateData.courses = updateData.courses || {};
-      // you may want to store this as amountPaid depending on schema
-      updateData.courses.amountPaid = body.feePaid;
+      courseUpdates.amountPaid = body.feePaid; // feePaid -> amountPaid
+      hasCourseUpdates = true;
+    }
+    if (body.feeRemaining !== undefined) {
+      // Optional: You might want to calculate remaining or just store it
+      // Since your schema doesn't have feeRemaining, you might skip or calculate
+      // feeRemaining = totalFees - feePaid
     }
     if (body.installments !== undefined) {
-      updateData.courses = updateData.courses || {};
-      updateData.courses.numberOfInstallments = body.installments;
+      courseUpdates.numberOfInstallments = body.installments;
+      hasCourseUpdates = true;
     }
     if (body.perInstallment !== undefined) {
-      updateData.courses = updateData.courses || {};
-      updateData.courses.feePerInstallment = body.perInstallment;
+      courseUpdates.feePerInstallment = body.perInstallment;
+      hasCourseUpdates = true;
+    }
+    if (body.dueDate !== undefined) {
+      // If you need to store dueDate in schema, add it
+      // Currently schema doesn't have dueDate
     }
 
-    // parentGuardian mapping
-    if (Object.keys(parentGuardian).length > 0) {
-      updateData.parentGuardian = {
-        ...(parentGuardian.name !== undefined && { name: parentGuardian.name }),
-        ...(parentGuardian.phone !== undefined && {
-          phone: parentGuardian.phone,
-        }),
+    // Payment method handling - MOST IMPORTANT
+    if (body.paymentMethod !== undefined) {
+      // Determine if custom payment method should be used
+      if (body.paymentMethod === "Custom" && body.customPaymentMethod) {
+        // If custom is selected and there's custom text, use custom text
+        courseUpdates.SubmitFee = body.customPaymentMethod;
+        courseUpdates.customPaymentMethod = body.customPaymentMethod;
+      } else {
+        // Otherwise use the selected payment method
+        courseUpdates.SubmitFee = body.paymentMethod;
+        // Clear customPaymentMethod if not custom
+        courseUpdates.customPaymentMethod = "";
+      }
+      hasCourseUpdates = true;
+    }
+
+    // Also handle customPaymentMethod separately if sent
+    if (body.customPaymentMethod !== undefined) {
+      courseUpdates.customPaymentMethod = body.customPaymentMethod;
+      hasCourseUpdates = true;
+    }
+
+    // If we have course updates, add them to updateData
+    if (hasCourseUpdates) {
+      updateData.courses = {
+        ...updateData.courses,
+        ...courseUpdates,
       };
     }
-    // emergencyContact mapping
-    if (Object.keys(emergencyContact).length > 0) {
-      updateData.emergencyContact = {
-        ...(emergencyContact.name !== undefined && {
-          name: emergencyContact.name,
-        }),
-        ...(emergencyContact.relationship !== undefined && {
-          relationship: emergencyContact.relationship,
-        }),
-        ...(emergencyContact.phoneNumber !== undefined && {
-          phoneNumber: emergencyContact.phoneNumber,
-        }),
-      };
-    }
 
-    // password handling
-    if (body.password) {
-      const bcrypt = require("bcryptjs");
-      updateData.password = await bcrypt.hash(body.password, 10);
-    }
+    console.log("✅ Processed updateData for PATCH:", updateData);
 
-    // 4) Handle file uploads (if any)
-    if (req.files) {
-      if (req.files.photo)
-        updateData.photo = req.files.photo[0].path.replace(/\\/g, "/");
-      if (req.files.studentCnicBForm)
-        updateData.studentCnicBForm =
-          req.files.studentCnicBForm[0].path.replace(/\\/g, "/");
-      if (req.files.parentCnic)
-        updateData.parentCnic = req.files.parentCnic[0].path.replace(
-          /\\/g,
-          "/"
-        );
-      if (req.files.medicalRecords)
-        updateData.medicalRecords = req.files.medicalRecords[0].path.replace(
-          /\\/g,
-          "/"
-        );
-      if (req.files.additionalDocuments)
-        updateData.additionalDocuments =
-          req.files.additionalDocuments[0].path.replace(/\\/g, "/");
-    }
-
-    console.log("✅ Mapped updateData (before DB):", updateData);
-
+    // Use findByIdAndUpdate with $set to only update provided fields
     const updatedStudent = await Student.findByIdAndUpdate(
       id,
       { $set: updateData },
-      { new: true, runValidators: true }
-    );
+      {
+        new: true,
+        runValidators: true,
+      }
+    ).select("-password"); // Exclude password from response
 
     if (!updatedStudent) {
       return res
@@ -349,7 +300,7 @@ const updateStudent = async (req, res) => {
         .json({ success: false, message: "Student not found" });
     }
 
-    console.log("✅ Updated student returned by Mongoose:", updatedStudent);
+    console.log("✅ Student updated successfully");
     return res.json({
       success: true,
       message: "Student updated successfully",
@@ -357,7 +308,10 @@ const updateStudent = async (req, res) => {
     });
   } catch (error) {
     console.error("❌ Error updating student:", error);
-    return res.status(500).json({ success: false, message: error.message });
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
   }
 };
 

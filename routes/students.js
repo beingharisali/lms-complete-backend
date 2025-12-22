@@ -13,7 +13,7 @@ const {
 router.post("/", upload, createStudent);
 router.get("/", getStudents);
 router.get("/:id", getStudentById);
-router.put("/:id", upload, updateStudent);
+router.patch("/:id", upload, updateStudent);
 router.delete("/:id", deleteStudent);
 
 module.exports = router;
