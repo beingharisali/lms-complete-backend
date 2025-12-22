@@ -201,8 +201,8 @@ const getStudentById = async (req, res) => {
 const updateStudent = async (req, res) => {
   try {
     const { id } = req.params;
-
     const body = req.body || {};
+
     const safeParse = (v) => {
       if (!v) return undefined;
       try {
@@ -212,127 +212,75 @@ const updateStudent = async (req, res) => {
       }
     };
 
-    const courses = safeParse(body.courses) || {};
-    const parentGuardian = safeParse(body.parentGuardian) || {};
-    const emergencyContact = safeParse(body.emergencyContact) || {};
-
     const updateData = {};
 
+    // Map frontend field names to schema field names
     if (body.name !== undefined) updateData.fullName = body.name; // name -> fullName
-    if (body.studentId !== undefined) updateData.studentId = body.studentId;
-    if (body.fullName !== undefined) updateData.fullName = body.fullName;
-    if (body.dateOfBirth !== undefined)
-      updateData.dateOfBirth = body.dateOfBirth;
-    if (body.gender !== undefined) updateData.gender = body.gender;
-    if (body.phone !== undefined) updateData.phone = body.phone;
-    if (body.email !== undefined) updateData.email = body.email;
-    if (body.cnicBForm !== undefined) updateData.cnicBForm = body.cnicBForm;
-    if (body.address !== undefined) updateData.address = body.address;
-    if (body.csr !== undefined) updateData.csr = body.csr;
+    if (body.contact !== undefined) updateData.phone = body.contact; // contact -> phone
 
-    // courses sub-object mapping (map keys from frontend to your schema)
+    // Handle csr - it should be inside courses object in schema
+    if (body.csr !== undefined) {
+      updateData.courses = updateData.courses || {};
+      updateData.courses.csr = body.csr;
+    }
+
+    // Build courses object from frontend data
+    if (
+      body.course !== undefined ||
+      body.totalFees !== undefined ||
+      body.feePaid !== undefined ||
+      body.installments !== undefined ||
+      body.perInstallment !== undefined ||
+      body.paymentMethod !== undefined ||
+      body.customPaymentMethod !== undefined
+    ) {
+      updateData.courses = updateData.courses || {};
+
+      if (body.course !== undefined)
+        updateData.courses.selectedCourse = body.course;
+      if (body.totalFees !== undefined)
+        updateData.courses.totalFees = body.totalFees;
+      if (body.feePaid !== undefined)
+        updateData.courses.amountPaid = body.feePaid; // feePaid -> amountPaid
+      if (body.installments !== undefined)
+        updateData.courses.numberOfInstallments = body.installments;
+      if (body.perInstallment !== undefined)
+        updateData.courses.feePerInstallment = body.perInstallment;
+
+      // Handle payment method - IMPORTANT: paymentMethod from frontend should map to SubmitFee
+      if (body.paymentMethod !== undefined) {
+        updateData.courses.SubmitFee = body.paymentMethod;
+      }
+
+      // Handle custom payment method
+      if (body.customPaymentMethod !== undefined) {
+        updateData.courses.customPaymentMethod = body.customPaymentMethod;
+      }
+    }
+
+    // Check if courses data was sent as an object
+    const courses = safeParse(body.courses) || {};
     if (Object.keys(courses).length > 0) {
-      updateData.courses = {
-        ...(courses.selectedCourse !== undefined && {
-          selectedCourse: courses.selectedCourse,
-        }),
-        ...(courses.batch !== undefined && { batch: courses.batch }),
-        ...(courses.totalFees !== undefined && {
-          totalFees: courses.totalFees,
-        }),
-        ...(courses.downPayment !== undefined && {
-          downPayment: courses.downPayment,
-        }),
-        ...(courses.numberOfInstallments !== undefined && {
-          numberOfInstallments: courses.numberOfInstallments,
-        }),
-        ...(courses.feePerInstallment !== undefined && {
-          feePerInstallment: courses.feePerInstallment,
-        }),
-        ...(courses.amountPaid !== undefined && {
-          amountPaid: courses.amountPaid,
-        }),
-        ...(courses.SubmitFee !== undefined && {
-          SubmitFee: courses.SubmitFee,
-        }),
-        ...(courses.customPaymentMethod !== undefined && {
-          customPaymentMethod: courses.customPaymentMethod,
-        }), // ✅ added
-      };
-    }
+      updateData.courses = updateData.courses || {};
 
-    if (body.course !== undefined) {
-      updateData.courses = updateData.courses || {};
-      updateData.courses.selectedCourse = body.course;
-    }
-    if (body.totalFees !== undefined) {
-      updateData.courses = updateData.courses || {};
-      updateData.courses.totalFees = body.totalFees;
-    }
-    if (body.feePaid !== undefined) {
-      updateData.courses = updateData.courses || {};
-      // you may want to store this as amountPaid depending on schema
-      updateData.courses.amountPaid = body.feePaid;
-    }
-    if (body.installments !== undefined) {
-      updateData.courses = updateData.courses || {};
-      updateData.courses.numberOfInstallments = body.installments;
-    }
-    if (body.perInstallment !== undefined) {
-      updateData.courses = updateData.courses || {};
-      updateData.courses.feePerInstallment = body.perInstallment;
-    }
-
-    // parentGuardian mapping
-    if (Object.keys(parentGuardian).length > 0) {
-      updateData.parentGuardian = {
-        ...(parentGuardian.name !== undefined && { name: parentGuardian.name }),
-        ...(parentGuardian.phone !== undefined && {
-          phone: parentGuardian.phone,
-        }),
-      };
-    }
-    // emergencyContact mapping
-    if (Object.keys(emergencyContact).length > 0) {
-      updateData.emergencyContact = {
-        ...(emergencyContact.name !== undefined && {
-          name: emergencyContact.name,
-        }),
-        ...(emergencyContact.relationship !== undefined && {
-          relationship: emergencyContact.relationship,
-        }),
-        ...(emergencyContact.phoneNumber !== undefined && {
-          phoneNumber: emergencyContact.phoneNumber,
-        }),
-      };
-    }
-
-    // password handling
-    if (body.password) {
-      const bcrypt = require("bcryptjs");
-      updateData.password = await bcrypt.hash(body.password, 10);
-    }
-
-    // 4) Handle file uploads (if any)
-    if (req.files) {
-      if (req.files.photo)
-        updateData.photo = req.files.photo[0].path.replace(/\\/g, "/");
-      if (req.files.studentCnicBForm)
-        updateData.studentCnicBForm =
-          req.files.studentCnicBForm[0].path.replace(/\\/g, "/");
-      if (req.files.parentCnic)
-        updateData.parentCnic = req.files.parentCnic[0].path.replace(
-          /\\/g,
-          "/"
-        );
-      if (req.files.medicalRecords)
-        updateData.medicalRecords = req.files.medicalRecords[0].path.replace(
-          /\\/g,
-          "/"
-        );
-      if (req.files.additionalDocuments)
-        updateData.additionalDocuments =
-          req.files.additionalDocuments[0].path.replace(/\\/g, "/");
+      // Map all course fields
+      if (courses.selectedCourse !== undefined)
+        updateData.courses.selectedCourse = courses.selectedCourse;
+      if (courses.csr !== undefined) updateData.courses.csr = courses.csr;
+      if (courses.totalFees !== undefined)
+        updateData.courses.totalFees = courses.totalFees;
+      if (courses.numberOfInstallments !== undefined)
+        updateData.courses.numberOfInstallments = courses.numberOfInstallments;
+      if (courses.feePerInstallment !== undefined)
+        updateData.courses.feePerInstallment = courses.feePerInstallment;
+      if (courses.amountPaid !== undefined)
+        updateData.courses.amountPaid = courses.amountPaid;
+      if (courses.enrolledDate !== undefined)
+        updateData.courses.enrolledDate = courses.enrolledDate;
+      if (courses.SubmitFee !== undefined)
+        updateData.courses.SubmitFee = courses.SubmitFee;
+      if (courses.customPaymentMethod !== undefined)
+        updateData.courses.customPaymentMethod = courses.customPaymentMethod;
     }
 
     console.log("✅ Mapped updateData (before DB):", updateData);
