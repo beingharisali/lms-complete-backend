@@ -203,93 +203,96 @@ const updateStudent = async (req, res) => {
     const { id } = req.params;
     const body = req.body || {};
 
-    const safeParse = (v) => {
-      if (!v) return undefined;
-      try {
-        return typeof v === "string" ? JSON.parse(v) : v;
-      } catch {
-        return v;
-      }
-    };
+    console.log("📥 Received PATCH data:", body);
 
     const updateData = {};
 
     // Map frontend field names to schema field names
+    // Basic information mapping
     if (body.name !== undefined) updateData.fullName = body.name; // name -> fullName
     if (body.contact !== undefined) updateData.phone = body.contact; // contact -> phone
 
-    // Handle csr - it should be inside courses object in schema
+    // CSR - needs to go inside courses object
     if (body.csr !== undefined) {
       updateData.courses = updateData.courses || {};
       updateData.courses.csr = body.csr;
     }
 
-    // Build courses object from frontend data
-    if (
-      body.course !== undefined ||
-      body.totalFees !== undefined ||
-      body.feePaid !== undefined ||
-      body.installments !== undefined ||
-      body.perInstallment !== undefined ||
-      body.paymentMethod !== undefined ||
-      body.customPaymentMethod !== undefined
-    ) {
-      updateData.courses = updateData.courses || {};
+    // Course-related fields - they all go inside courses object
+    const courseUpdates = {};
+    let hasCourseUpdates = false;
 
-      if (body.course !== undefined)
-        updateData.courses.selectedCourse = body.course;
-      if (body.totalFees !== undefined)
-        updateData.courses.totalFees = body.totalFees;
-      if (body.feePaid !== undefined)
-        updateData.courses.amountPaid = body.feePaid; // feePaid -> amountPaid
-      if (body.installments !== undefined)
-        updateData.courses.numberOfInstallments = body.installments;
-      if (body.perInstallment !== undefined)
-        updateData.courses.feePerInstallment = body.perInstallment;
-
-      // Handle payment method - IMPORTANT: paymentMethod from frontend should map to SubmitFee
-      if (body.paymentMethod !== undefined) {
-        updateData.courses.SubmitFee = body.paymentMethod;
-      }
-
-      // Handle custom payment method
-      if (body.customPaymentMethod !== undefined) {
-        updateData.courses.customPaymentMethod = body.customPaymentMethod;
-      }
+    if (body.course !== undefined) {
+      courseUpdates.selectedCourse = body.course;
+      hasCourseUpdates = true;
+    }
+    if (body.totalFees !== undefined) {
+      courseUpdates.totalFees = body.totalFees;
+      hasCourseUpdates = true;
+    }
+    if (body.feePaid !== undefined) {
+      courseUpdates.amountPaid = body.feePaid; // feePaid -> amountPaid
+      hasCourseUpdates = true;
+    }
+    if (body.feeRemaining !== undefined) {
+      // Optional: You might want to calculate remaining or just store it
+      // Since your schema doesn't have feeRemaining, you might skip or calculate
+      // feeRemaining = totalFees - feePaid
+    }
+    if (body.installments !== undefined) {
+      courseUpdates.numberOfInstallments = body.installments;
+      hasCourseUpdates = true;
+    }
+    if (body.perInstallment !== undefined) {
+      courseUpdates.feePerInstallment = body.perInstallment;
+      hasCourseUpdates = true;
+    }
+    if (body.dueDate !== undefined) {
+      // If you need to store dueDate in schema, add it
+      // Currently schema doesn't have dueDate
     }
 
-    // Check if courses data was sent as an object
-    const courses = safeParse(body.courses) || {};
-    if (Object.keys(courses).length > 0) {
-      updateData.courses = updateData.courses || {};
-
-      // Map all course fields
-      if (courses.selectedCourse !== undefined)
-        updateData.courses.selectedCourse = courses.selectedCourse;
-      if (courses.csr !== undefined) updateData.courses.csr = courses.csr;
-      if (courses.totalFees !== undefined)
-        updateData.courses.totalFees = courses.totalFees;
-      if (courses.numberOfInstallments !== undefined)
-        updateData.courses.numberOfInstallments = courses.numberOfInstallments;
-      if (courses.feePerInstallment !== undefined)
-        updateData.courses.feePerInstallment = courses.feePerInstallment;
-      if (courses.amountPaid !== undefined)
-        updateData.courses.amountPaid = courses.amountPaid;
-      if (courses.enrolledDate !== undefined)
-        updateData.courses.enrolledDate = courses.enrolledDate;
-      if (courses.SubmitFee !== undefined)
-        updateData.courses.SubmitFee = courses.SubmitFee;
-      if (courses.customPaymentMethod !== undefined)
-        updateData.courses.customPaymentMethod = courses.customPaymentMethod;
+    // Payment method handling - MOST IMPORTANT
+    if (body.paymentMethod !== undefined) {
+      // Determine if custom payment method should be used
+      if (body.paymentMethod === "Custom" && body.customPaymentMethod) {
+        // If custom is selected and there's custom text, use custom text
+        courseUpdates.SubmitFee = body.customPaymentMethod;
+        courseUpdates.customPaymentMethod = body.customPaymentMethod;
+      } else {
+        // Otherwise use the selected payment method
+        courseUpdates.SubmitFee = body.paymentMethod;
+        // Clear customPaymentMethod if not custom
+        courseUpdates.customPaymentMethod = "";
+      }
+      hasCourseUpdates = true;
     }
 
-    console.log("✅ Mapped updateData (before DB):", updateData);
+    // Also handle customPaymentMethod separately if sent
+    if (body.customPaymentMethod !== undefined) {
+      courseUpdates.customPaymentMethod = body.customPaymentMethod;
+      hasCourseUpdates = true;
+    }
 
+    // If we have course updates, add them to updateData
+    if (hasCourseUpdates) {
+      updateData.courses = {
+        ...updateData.courses,
+        ...courseUpdates,
+      };
+    }
+
+    console.log("✅ Processed updateData for PATCH:", updateData);
+
+    // Use findByIdAndUpdate with $set to only update provided fields
     const updatedStudent = await Student.findByIdAndUpdate(
       id,
       { $set: updateData },
-      { new: true, runValidators: true }
-    );
+      {
+        new: true,
+        runValidators: true,
+      }
+    ).select("-password"); // Exclude password from response
 
     if (!updatedStudent) {
       return res
@@ -297,7 +300,7 @@ const updateStudent = async (req, res) => {
         .json({ success: false, message: "Student not found" });
     }
 
-    console.log("✅ Updated student returned by Mongoose:", updatedStudent);
+    console.log("✅ Student updated successfully");
     return res.json({
       success: true,
       message: "Student updated successfully",
@@ -305,7 +308,10 @@ const updateStudent = async (req, res) => {
     });
   } catch (error) {
     console.error("❌ Error updating student:", error);
-    return res.status(500).json({ success: false, message: error.message });
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
   }
 };
 
