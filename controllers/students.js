@@ -104,7 +104,6 @@ const getStudentById = async (req, res) => {
   }
 };
 
-
 const updateStudent = async (req, res) => {
   try {
     const { id } = req.params;
@@ -165,7 +164,7 @@ const updateStudent = async (req, res) => {
         }),
         ...(courses.customPaymentMethod !== undefined && {
           customPaymentMethod: courses.customPaymentMethod,
-        }), 
+        }),
       };
     }
 
