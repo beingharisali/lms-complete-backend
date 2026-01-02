@@ -132,6 +132,7 @@ const updateStudent = async (req, res) => {
       updateData.dateOfBirth = body.dateOfBirth;
     if (body.gender !== undefined) updateData.gender = body.gender;
     if (body.phone !== undefined) updateData.phone = body.phone;
+    if (body.contact !== undefined) updateData.phone = body.contact; // contact -> phone
     if (body.email !== undefined) updateData.email = body.email;
     if (body.cnicBForm !== undefined) updateData.cnicBForm = body.cnicBForm;
     if (body.address !== undefined) updateData.address = body.address;
