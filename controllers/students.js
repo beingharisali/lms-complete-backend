@@ -2,13 +2,13 @@ const qs = require("qs");
 const Student = require("../models/Student");
 const bcrypt = require("bcryptjs");
 
-// ✅ Create Student
+//  Create Student
 const createStudent = async (req, res) => {
   try {
     const bodyString = JSON.stringify(req.body);
     const convertedBody = qs.parse(JSON.parse(bodyString));
 
-    console.log("✅ Converted Body (Create):", convertedBody);
+    console.log(" Converted Body (Create):", convertedBody);
 
     const studentData = {
       studentId: convertedBody.studentId,
@@ -104,100 +104,6 @@ const getStudentById = async (req, res) => {
   }
 };
 
-// ✅ Update Student
-// const updateStudent = async (req, res) => {
-//   try {
-//     // const bodyString = JSON.stringify(req.body);
-//     // const convertedBody = qs.parse(JSON.parse(bodyString));
-//  const convertedBody = req.body;
-//     // console.log("✅ Body (Update):", convertedBody);
-//     console.log("✅ Converted Body (Update):", convertedBody);
-
-//     const updateData = {
-//       studentId: convertedBody.studentId,
-//       fullName: convertedBody.fullName,
-//       dateOfBirth: convertedBody.dateOfBirth,
-//       gender: convertedBody.gender,
-//       phone: convertedBody.phone,
-//       email: convertedBody.email,
-//       cnicBForm: convertedBody.cnicBForm,
-//       address: convertedBody.address,
-//       csr: convertedBody.csr,
-//       parentGuardian: {
-//         name: convertedBody.parentGuardian?.name,
-//         phone: convertedBody.parentGuardian?.phone,
-//       },
-//       courses: {
-//         selectedCourse: convertedBody.courses?.selectedCourse,
-//         batch: convertedBody.courses?.batch,
-//         totalFees: convertedBody.courses?.totalFees,
-//         downPayment: convertedBody.courses?.downPayment,
-//         numberOfInstallments: convertedBody.courses?.numberOfInstallments,
-//         feePerInstallment: convertedBody.courses?.feePerInstallment,
-//         amountPaid: convertedBody.courses?.amountPaid,
-//       },
-//       emergencyContact: {
-//         name: convertedBody.emergencyContact?.name,
-//         relationship: convertedBody.emergencyContact?.relationship,
-//         phoneNumber: convertedBody.emergencyContact?.phoneNumber,
-//       },
-//     };
-
-//     // ✅ If password is provided, rehash it
-//     if (convertedBody.password) {
-//       updateData.password = await bcrypt.hash(convertedBody.password, 10);
-//     }
-
-//     // ✅ Handle file updates
-//     if (req.files) {
-//       if (req.files.photo)
-//         updateData.photo = req.files.photo[0].path.replace(/\\/g, "/");
-//       if (req.files.studentCnicBForm)
-//         updateData.studentCnicBForm =
-//           req.files.studentCnicBForm[0].path.replace(/\\/g, "/");
-//       if (req.files.parentCnic)
-//         updateData.parentCnic = req.files.parentCnic[0].path.replace(/\\/g, "/");
-//       if (req.files.medicalRecords)
-//         updateData.medicalRecords =
-//           req.files.medicalRecords[0].path.replace(/\\/g, "/");
-//       if (req.files.additionalDocuments)
-//         updateData.additionalDocuments =
-//           req.files.additionalDocuments[0].path.replace(/\\/g, "/");
-//     }
-
-//     // const updatedStudent = await Student.findByIdAndUpdate(
-//     //   req.params.id,
-//     //   updateData,
-//     //   { new: true }
-//     // );  //////////////////////////
-
-// const updatedStudent = await Student.findByIdAndUpdate(
-//   req.params.id,
-//   { $set: updateData },
-//   { new: true }
-// );
-
-// // const { id } = req.params;
-// // const updatedStudent = await Student.findByIdAndUpdate(id, req.body, { new: true });
-
-//     if (!updatedStudent)
-//       return res
-//         .status(404)
-//         .json({ success: false, message: "Student not found" });
-
-//     res.json({
-//       success: true,
-//       message: "Student updated successfully",
-//       student: updatedStudent,
-//     });
-//   } catch (error) {
-//     console.error("❌ Error updating student:", error);
-//     res.status(500).json({ success: false, message: error.message });
-//   }
-// };
-
-// controllers/studentController.js
-
 const updateStudent = async (req, res) => {
   try {
     const { id } = req.params;
@@ -209,13 +115,94 @@ const updateStudent = async (req, res) => {
 
     // Map frontend field names to schema field names
     // Basic information mapping
-    if (body.name !== undefined) updateData.fullName = body.name; // name -> fullName
-    if (body.contact !== undefined) updateData.phone = body.contact; // contact -> phone
+    // if (body.name !== undefined) updateData.fullName = body.name; // name -> fullName
 
-    // CSR - needs to go inside courses object
-    if (body.csr !== undefined) {
-      updateData.courses = updateData.courses || {};
-      updateData.courses.csr = body.csr;
+    // if (body.studentId !== undefined) updateData.studentId = body.studentId;
+    // if (body.fullName !== undefined) updateData.fullName = body.fullName;
+    // if (body.dateOfBirth !== undefined)
+    //   updateData.dateOfBirth = body.dateOfBirth;
+    // if (body.gender !== undefined) updateData.gender = body.gender;
+    // if (body.phone !== undefined) updateData.phone = body.phone;
+    // if (body.contact !== undefined) updateData.phone = body.contact; // contact -> phone
+    // if (body.email !== undefined) updateData.email = body.email;
+    // if (body.cnicBForm !== undefined) updateData.cnicBForm = body.cnicBForm;
+    // if (body.address !== undefined) updateData.address = body.address;
+    // if (body.csr !== undefined) updateData.csr = body.csr;
+
+    // // courses sub-object mapping (map keys from frontend to your schema)
+    // if (Object.keys(courses).length > 0) {
+    //   updateData.courses = {
+    //     ...(courses.selectedCourse !== undefined && {
+    //       selectedCourse: courses.selectedCourse,
+    //     }),
+    //     ...(courses.batch !== undefined && { batch: courses.batch }),
+    //     ...(courses.totalFees !== undefined && {
+    //       totalFees: courses.totalFees,
+    //     }),
+    //     ...(courses.downPayment !== undefined && {
+    //       downPayment: courses.downPayment,
+    //     }),
+    //     ...(courses.numberOfInstallments !== undefined && {
+    //       numberOfInstallments: courses.numberOfInstallments,
+    //     }),
+    //     ...(courses.feePerInstallment !== undefined && {
+    //       feePerInstallment: courses.feePerInstallment,
+    //     }),
+    //     ...(courses.amountPaid !== undefined && {
+    //       amountPaid: courses.amountPaid,
+    //     }),
+    //     ...(courses.SubmitFee !== undefined && {
+    //       SubmitFee: courses.SubmitFee,
+    //     }),
+    //     ...(courses.customPaymentMethod !== undefined && {
+    //       customPaymentMethod: courses.customPaymentMethod,
+    //     }),
+    //   };
+
+    // if (body.contact !== undefined) updateData.phone = body.contact; // contact -> phone
+
+    // // CSR - needs to go inside courses object
+    // if (body.csr !== undefined) {
+    //   updateData.courses = updateData.courses || {};
+    //   updateData.courses.csr = body.csr;
+
+    // }
+    // basic student fields
+    if (body.name !== undefined) updateData.fullName = body.name;
+    if (body.studentId !== undefined) updateData.studentId = body.studentId;
+    if (body.fullName !== undefined) updateData.fullName = body.fullName;
+    if (body.dateOfBirth !== undefined)
+      updateData.dateOfBirth = body.dateOfBirth;
+    if (body.gender !== undefined) updateData.gender = body.gender;
+    if (body.phone !== undefined) updateData.phone = body.phone;
+    if (body.contact !== undefined) updateData.phone = body.contact;
+    if (body.email !== undefined) updateData.email = body.email;
+    if (body.cnicBForm !== undefined) updateData.cnicBForm = body.cnicBForm;
+    if (body.address !== undefined) updateData.address = body.address;
+
+    // courses object
+    if (Object.keys(courses).length > 0 || body.csr !== undefined) {
+      updateData.courses = {};
+
+      if (courses.selectedCourse !== undefined)
+        updateData.courses.selectedCourse = courses.selectedCourse;
+      if (courses.batch !== undefined) updateData.courses.batch = courses.batch;
+      if (courses.totalFees !== undefined)
+        updateData.courses.totalFees = courses.totalFees;
+      if (courses.downPayment !== undefined)
+        updateData.courses.downPayment = courses.downPayment;
+      if (courses.numberOfInstallments !== undefined)
+        updateData.courses.numberOfInstallments = courses.numberOfInstallments;
+      if (courses.feePerInstallment !== undefined)
+        updateData.courses.feePerInstallment = courses.feePerInstallment;
+      if (courses.amountPaid !== undefined)
+        updateData.courses.amountPaid = courses.amountPaid;
+      if (courses.SubmitFee !== undefined)
+        updateData.courses.SubmitFee = courses.SubmitFee;
+      if (courses.customPaymentMethod !== undefined)
+        updateData.courses.customPaymentMethod = courses.customPaymentMethod;
+
+      if (body.csr !== undefined) updateData.courses.csr = body.csr;
     }
 
     // Course-related fields - they all go inside courses object

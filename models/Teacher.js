@@ -106,22 +106,6 @@ const TeacherSchema = new mongoose.Schema(
       },
     },
 
-    // Unassigned Courses Information
-    unassignedCourses: {
-      selectedCourse: {
-        type: String,
-        required: [true, "Please select a course"],
-      },
-      designation: {
-        type: String,
-        required: [true, "Please provide designation"],
-        maxlength: 100,
-      },
-      dateOfJoining: {
-        type: Date,
-        required: [true, "Please provide date of joining"],
-      },
-    },
 
     // Emergency Contact
     emergencyContact: {
