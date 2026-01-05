@@ -113,60 +113,6 @@ const updateStudent = async (req, res) => {
 
     const updateData = {};
 
-    // Map frontend field names to schema field names
-    // Basic information mapping
-    // if (body.name !== undefined) updateData.fullName = body.name; // name -> fullName
-
-    // if (body.studentId !== undefined) updateData.studentId = body.studentId;
-    // if (body.fullName !== undefined) updateData.fullName = body.fullName;
-    // if (body.dateOfBirth !== undefined)
-    //   updateData.dateOfBirth = body.dateOfBirth;
-    // if (body.gender !== undefined) updateData.gender = body.gender;
-    // if (body.phone !== undefined) updateData.phone = body.phone;
-    // if (body.contact !== undefined) updateData.phone = body.contact; // contact -> phone
-    // if (body.email !== undefined) updateData.email = body.email;
-    // if (body.cnicBForm !== undefined) updateData.cnicBForm = body.cnicBForm;
-    // if (body.address !== undefined) updateData.address = body.address;
-    // if (body.csr !== undefined) updateData.csr = body.csr;
-
-    // // courses sub-object mapping (map keys from frontend to your schema)
-    // if (Object.keys(courses).length > 0) {
-    //   updateData.courses = {
-    //     ...(courses.selectedCourse !== undefined && {
-    //       selectedCourse: courses.selectedCourse,
-    //     }),
-    //     ...(courses.batch !== undefined && { batch: courses.batch }),
-    //     ...(courses.totalFees !== undefined && {
-    //       totalFees: courses.totalFees,
-    //     }),
-    //     ...(courses.downPayment !== undefined && {
-    //       downPayment: courses.downPayment,
-    //     }),
-    //     ...(courses.numberOfInstallments !== undefined && {
-    //       numberOfInstallments: courses.numberOfInstallments,
-    //     }),
-    //     ...(courses.feePerInstallment !== undefined && {
-    //       feePerInstallment: courses.feePerInstallment,
-    //     }),
-    //     ...(courses.amountPaid !== undefined && {
-    //       amountPaid: courses.amountPaid,
-    //     }),
-    //     ...(courses.SubmitFee !== undefined && {
-    //       SubmitFee: courses.SubmitFee,
-    //     }),
-    //     ...(courses.customPaymentMethod !== undefined && {
-    //       customPaymentMethod: courses.customPaymentMethod,
-    //     }),
-    //   };
-
-    // if (body.contact !== undefined) updateData.phone = body.contact; // contact -> phone
-
-    // // CSR - needs to go inside courses object
-    // if (body.csr !== undefined) {
-    //   updateData.courses = updateData.courses || {};
-    //   updateData.courses.csr = body.csr;
-
-    // }
     // basic student fields
     if (body.name !== undefined) updateData.fullName = body.name;
     if (body.studentId !== undefined) updateData.studentId = body.studentId;
