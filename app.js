@@ -53,11 +53,12 @@ const teachersRouter = require("./routes/teachers");
 const staffRouter = require("./routes/staff");
 const visitorsRouter = require("./routes/visitors");
 const assignmentRoutes = require("./routes/assignmentRoutes");
-const quizRoutes = require("./routes/quizRoutes"); // ✅ add quiz routes
+const quizRoutes = require("./routes/quizRoutes"); 
 const coursesRouter = require("./routes/courses");
 const attendanceRoutes = require("./routes/attendance");
-// lecture route
 const lecture = require ("./routes/lecture");
+const uploadfile = require ("./routes/uploadfile");
+
 // error handler
 const notFoundMiddleware = require("./middleware/not-found");
 const errorHandlerMiddleware = require("./middleware/error-handler");
@@ -103,11 +104,9 @@ app.use("/api/v1/visitors", visitorsRouter);
 app.use("/api/v1/assignments", assignmentRoutes);
 app.use("/api/v1/quizzes", quizRoutes); 
 app.use("/api/v1/courses", coursesRouter);
-
-// attendance route
 app.use("/api/v1/attendance", attendanceRoutes);
-// lecture route
 app.use("/api/v1/lectures", lecture);
+app.use("/api/v1/uploadfile", uploadfile);
 
 // middleware
 app.use(notFoundMiddleware);
