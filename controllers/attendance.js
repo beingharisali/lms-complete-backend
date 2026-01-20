@@ -120,7 +120,6 @@ const getAttendanceByCourse = async (req, res) => {
 };
 
 
-// Attendace percentage caculate per student and per lecture
 
 const getAttendancePercentageByCourse = async (req, res) => {
   try {

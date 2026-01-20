@@ -9,7 +9,6 @@ const {
   deleteStudent,
 } = require("../controllers/students.js");
 
-// ✅ CRUD routes
 router.post("/", upload, createStudent);
 router.get("/", getStudents);
 router.get("/:id", getStudentById);
