@@ -1,13 +1,13 @@
-// again push
+// code push
 const cloudinary = require("cloudinary").v2;
 const path = require("path");
 const fs = require("fs");
 const Image = require("../models/uploadfile");
 
-cloudinary.config({ 
+cloudinary.config({
   cloud_name: process.env.CLOUD_NAME,
-  api_key: process.env.API_KEY, 
-  api_secret: process.env.API_SECRET_KEY
+  api_key: process.env.API_KEY,
+  api_secret: process.env.API_SECRET_KEY,
 });
 
 const uploadFile = async (req, res) => {
@@ -39,7 +39,6 @@ const uploadFile = async (req, res) => {
       folder: "uploads",
     });
 
-  
     const newImage = new Image({
       Image_Url: result.secure_url,
       fileName: req.file.originalname,
@@ -48,7 +47,6 @@ const uploadFile = async (req, res) => {
     });
 
     await newImage.save();
-
 
     fs.unlink(filePath, (err) => {
       if (err) console.log("Error deleted file ka", err);
@@ -61,7 +59,6 @@ const uploadFile = async (req, res) => {
       fileName: req.file.originalname,
       fileType,
     });
-
   } catch (error) {
     console.error(error);
     res.status(500).json({
