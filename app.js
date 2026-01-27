@@ -58,6 +58,7 @@ const coursesRouter = require("./routes/courses");
 const attendanceRoutes = require("./routes/attendance");
 const lecture = require ("./routes/lecture");
 const uploadfile = require ("./routes/uploadfile");
+const resourceRoutes = require("./routes/resourceRoutes");
 
 // error handler
 const notFoundMiddleware = require("./middleware/not-found");
@@ -107,6 +108,7 @@ app.use("/api/v1/courses", coursesRouter);
 app.use("/api/v1/attendance", attendanceRoutes);
 app.use("/api/v1/lectures", lecture);
 app.use("/api/v1/uploadfile", uploadfile);
+app.use("/api/v1/resources", resourceRoutes);
 
 // middleware
 app.use(notFoundMiddleware);
