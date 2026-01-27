@@ -1,6 +1,6 @@
 const Quiz = require("../models/Quiz");
 
-// Create quiz
+
 const createQuiz = async (req, res) => {
   try {
     let { title, description, validTill, totalMarks, allowMultiple, questions } = req.body;
@@ -10,7 +10,6 @@ const createQuiz = async (req, res) => {
       filePath = req.file.path;
     }
 
-    // Parse questions if it's string (because FormData sends it as string)
     if (typeof questions === "string") {
       try {
         questions = JSON.parse(questions);
@@ -18,8 +17,6 @@ const createQuiz = async (req, res) => {
         return res.status(400).json({ message: "Invalid questions format" });
       }
     }
-
-    // Type casting
     allowMultiple = allowMultiple === "true" || allowMultiple === true;
     totalMarks = Number(totalMarks);
 
@@ -40,7 +37,6 @@ const createQuiz = async (req, res) => {
   }
 };
 
-// Get all quizzes
 const getQuizzes = async (req, res) => {
   try {
     const quizzes = await Quiz.find().sort({ createdAt: -1 });
@@ -50,7 +46,7 @@ const getQuizzes = async (req, res) => {
   }
 };
 
-// Get single quiz
+
 const getQuizById = async (req, res) => {
   try {
     const quiz = await Quiz.findById(req.params.id);
@@ -61,12 +57,11 @@ const getQuizById = async (req, res) => {
   }
 };
 
-// Update quiz
+
 const updateQuiz = async (req, res) => {
   try {
     let { title, description, validTill, totalMarks, allowMultiple, questions } = req.body;
 
-    // Parse questions if sent as string
     if (typeof questions === "string") {
       try {
         questions = JSON.parse(questions);
@@ -75,7 +70,7 @@ const updateQuiz = async (req, res) => {
       }
     }
 
-    // Type casting
+
     allowMultiple = allowMultiple === "true" || allowMultiple === true;
     totalMarks = Number(totalMarks);
 
@@ -106,7 +101,7 @@ const updateQuiz = async (req, res) => {
   }
 };
 
-// Delete quiz
+
 const deleteQuiz = async (req, res) => {
   try {
     const quiz = await Quiz.findByIdAndDelete(req.params.id);
