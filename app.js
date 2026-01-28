@@ -59,7 +59,7 @@ const attendanceRoutes = require("./routes/attendance");
 const lecture = require ("./routes/lecture");
 const uploadfile = require ("./routes/uploadfile");
 const resourceRoutes = require("./routes/resourceRoutes");
-
+const guizRoutes = require("./routes/guizRoutes");
 // error handler
 const notFoundMiddleware = require("./middleware/not-found");
 const errorHandlerMiddleware = require("./middleware/error-handler");
@@ -109,6 +109,7 @@ app.use("/api/v1/attendance", attendanceRoutes);
 app.use("/api/v1/lectures", lecture);
 app.use("/api/v1/uploadfile", uploadfile);
 app.use("/api/v1/resources", resourceRoutes);
+app.use("/api/v1/guizes", guizRoutes); 
 
 // middleware
 app.use(notFoundMiddleware);

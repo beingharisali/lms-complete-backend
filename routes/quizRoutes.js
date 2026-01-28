@@ -8,7 +8,7 @@ const {
   deleteQuiz,
 } = require("../controllers/quizController");
 
-// CRUD endpoints
+
 router.post("/", createQuiz);
 router.get("/", getQuizzes);
 router.get("/:id", getQuizById);
